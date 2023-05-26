@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,7 +13,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/go-chi/chi"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
 
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plugin"
