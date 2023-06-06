@@ -40,44 +40,43 @@ var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosCo
 
 func Init(config configuration.Config) (provider.Provider, error) {
 	var domainFilter endpoint.DomainFilter
+	createMsg := "Creating IONOS provider with "
+
 	if config.RegexDomainFilter != "" {
+		createMsg += fmt.Sprintf("Regexp domain filter: '%s', ", config.RegexDomainFilter)
+		if config.RegexDomainExclusion != "" {
+			createMsg += fmt.Sprintf("with exclusion: '%s', ", config.RegexDomainExclusion)
+		}
 		domainFilter = endpoint.NewRegexDomainFilter(
 			regexp.MustCompile(config.RegexDomainFilter),
 			regexp.MustCompile(config.RegexDomainExclusion),
 		)
 	} else {
+		if config.DomainFilter != nil && len(config.DomainFilter) > 0 {
+			createMsg += fmt.Sprintf("Domain filter: '%s', ", strings.Join(config.DomainFilter, ","))
+		}
+		if config.ExcludeDomains != nil && len(config.ExcludeDomains) > 0 {
+			createMsg += fmt.Sprintf("Exclude domain filter: '%s', ", strings.Join(config.ExcludeDomains, ","))
+		}
 		domainFilter = endpoint.NewDomainFilterWithExclusions(config.DomainFilter, config.ExcludeDomains)
+	}
+
+	createMsg = strings.TrimSuffix(createMsg, ", ")
+	if strings.HasSuffix(createMsg, "with ") {
+		createMsg += "no kind of domain filters"
+	}
+	log.Info(createMsg)
+	if config.DryRun {
+		log.Warn("***** Dry run enabled, DNS records will not be created or deleted *****")
 	}
 	ionosConfig := ionos.Configuration{}
 	if err := env.Parse(&ionosConfig); err != nil {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
-	createMsg := "Creating IONOS provider with "
-	if config.DomainFilter != nil && len(config.DomainFilter) > 0 {
-		createMsg += fmt.Sprintf("Domain filter: '%s', ", strings.Join(config.DomainFilter, ","))
-	}
-	if config.ExcludeDomains != nil && len(config.ExcludeDomains) > 0 {
-		createMsg += fmt.Sprintf("Exclude domain filter: '%s', ", strings.Join(config.ExcludeDomains, ","))
-	}
-	if config.RegexDomainFilter != "" {
-		createMsg += fmt.Sprintf("Regexp domain filter: '%s', ", config.RegexDomainFilter)
-	}
-	if config.RegexDomainExclusion != "" {
-		createMsg += fmt.Sprintf("Regexp domain filter exclusion: '%s', ", config.RegexDomainExclusion)
-	}
-	createMsg = strings.TrimSuffix(createMsg, ", ")
-	if strings.HasSuffix(createMsg, "with ") {
-		createMsg += "no kind of domain filters"
-	}
-
-	log.Info(createMsg)
-	if config.DryRun {
-		log.Warn("***** Dry run enabled, DNS records will not be created or deleted *****")
-	}
 	createProvider := detectProvider(&ionosConfig)
 	provider, err := createProvider(domainFilter, &ionosConfig, config.DryRun)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize IonosCore provider: %v", err)
+		return nil, fmt.Errorf("failed to initialize IONOS provider: %v", err)
 	}
 	return provider, nil
 }
