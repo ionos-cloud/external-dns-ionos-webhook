@@ -22,17 +22,17 @@ func Init(config configuration.Config) provider.Provider {
 		domainFilter = endpoint.NewDomainFilterWithExclusions(config.DomainFilter, config.ExcludeDomains)
 	}
 
-	log.Infof("Creating IONOS core provider with parameters Domain filter: %s , Exclude domain filter: %s, Regexp domain filter: %s, Regexp domain filter exclusion: %s, Dry run: %t",
+	log.Infof("Creating IONOS core prov with parameters Domain filter: %s , Exclude domain filter: %s, Regexp domain filter: %s, Regexp domain filter exclusion: %s, Dry run: %t",
 		strings.Join(config.DomainFilter, ","),
 		strings.Join(config.ExcludeDomains, ","),
 		config.RegexDomainFilter,
 		config.RegexDomainExclusion,
 		config.DryRun)
 
-	provider, err := ionoscore.NewProvider(domainFilter, config.DryRun)
+	prov, err := ionoscore.NewProvider(domainFilter, config.DryRun)
 	if err != nil {
-		log.Fatalf("Failed to initialize IonosCore provider: %v", err)
+		log.Fatalf("Failed to initialize IonosCore prov: %v", err)
 	}
 
-	return provider
+	return prov
 }
