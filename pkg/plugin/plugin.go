@@ -126,7 +126,7 @@ func (p *Plugin) headerCheck(isContentType bool, w http.ResponseWriter, r *http.
 	return nil
 }
 
-// Records get request endpoint handler
+// Records handles the get request for records
 func (p *Plugin) Records(w http.ResponseWriter, r *http.Request) {
 	if err := p.acceptHeaderCheck(w, r); err != nil {
 		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
@@ -151,7 +151,7 @@ func (p *Plugin) Records(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ApplyChanges get request endpoint handler
+// ApplyChanges handles the post request for record changes
 func (p *Plugin) ApplyChanges(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
 		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
@@ -191,7 +191,7 @@ type PropertiesValuesEqualsResponse struct {
 	Equals bool `json:"equals"`
 }
 
-// PropertyValuesEquals get request endpoint handler
+// PropertyValuesEquals handles the post request for property values equals
 func (p *Plugin) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
 		requestLog(r).WithField(logFieldError, err).Error("content type header check failed")
@@ -229,7 +229,7 @@ func (p *Plugin) PropertyValuesEquals(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// AdjustEndpoints get request endpoint handler
+// AdjustEndpoints handles the post request for adjusting endpoints
 func (p *Plugin) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	if err := p.contentTypeHeaderCheck(w, r); err != nil {
 		log.Errorf("content type header check failed, request method: %s, request path: %s", r.Method, r.URL.Path)
