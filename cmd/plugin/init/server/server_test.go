@@ -137,7 +137,7 @@ func TestApplyChanges(t *testing.T) {
         }
     ]
 }`,
-			expectedStatusCode:      http.StatusOK,
+			expectedStatusCode:      http.StatusNoContent,
 			expectedResponseHeaders: map[string]string{},
 			expectedBody:            "",
 			expectedChanges: &plan.Changes{

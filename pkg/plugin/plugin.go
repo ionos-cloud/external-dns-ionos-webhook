@@ -176,7 +176,7 @@ func (p *Plugin) ApplyChanges(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PropertyValuesEqualsRequest holds params for property values equals request
