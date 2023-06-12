@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env/v8"
 	"regexp"
 	"strings"
+
+	"github.com/caarlos0/env/v8"
 
 	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionos"
@@ -15,6 +16,10 @@ import (
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/provider"
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	webtokenIonosISSValue = "ionoscloud"
 )
 
 type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) (provider.Provider, error)
@@ -82,20 +87,20 @@ func Init(config configuration.Config) (provider.Provider, error) {
 }
 
 func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
-	token := ionosConfig.APIKey
-	split := strings.Split(token, ".")
-	providerType := IonosCoreProviderFactory
+	split := strings.Split(ionosConfig.APIKey, ".")
 	if len(split) == 3 {
 		tokenBytes, err := base64.RawStdEncoding.DecodeString(split[1])
-		if err == nil {
-			var tokenMap map[string]interface{}
-			err = json.Unmarshal(tokenBytes, &tokenMap)
-			if err == nil {
-				if tokenMap["iss"] == "ionoscloud" {
-					providerType = IonosCloudProviderFactory
-				}
-			}
+		if err != nil {
+			return IonosCoreProviderFactory
+		}
+		var tokenMap map[string]interface{}
+		err = json.Unmarshal(tokenBytes, &tokenMap)
+		if err != nil {
+			return IonosCoreProviderFactory
+		}
+		if tokenMap["iss"] == webtokenIonosISSValue {
+			return IonosCloudProviderFactory
 		}
 	}
-	return providerType
+	return IonosCoreProviderFactory
 }
