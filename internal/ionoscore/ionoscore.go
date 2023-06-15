@@ -41,10 +41,6 @@ type DnsClient struct {
 // GetZones client get zones method
 func (c DnsClient) GetZones(ctx context.Context) ([]sdk.Zone, error) {
 	zones, _, err := c.client.ZonesApi.GetZones(ctx).Execute()
-	if err != nil {
-		return nil, err
-	}
-
 	return zones, err
 }
 
@@ -67,11 +63,8 @@ func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId str
 }
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration, dryRun bool) (*Provider, error) {
-	client, err := createClient(configuration)
-	if err != nil {
-		return nil, fmt.Errorf("provider creation failed, %v", err)
-	}
+func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration, dryRun bool) *Provider {
+	client := createClient(configuration)
 
 	prov := &Provider{
 		client:       DnsClient{client: client},
@@ -79,10 +72,10 @@ func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Config
 		dryRun:       dryRun,
 	}
 
-	return prov, nil
+	return prov
 }
 
-func createClient(config *ionos.Configuration) (*sdk.APIClient, error) {
+func createClient(config *ionos.Configuration) *sdk.APIClient {
 	maskAPIKey := func() string {
 		if len(config.APIKey) <= 3 {
 			return strings.Repeat("*", len(config.APIKey))
@@ -107,7 +100,7 @@ func createClient(config *ionos.Configuration) (*sdk.APIClient, error) {
 		runtime.GOOS, runtime.GOARCH)
 	sdkConfig.Debug = config.Debug
 
-	return sdk.NewAPIClient(sdkConfig), nil
+	return sdk.NewAPIClient(sdkConfig)
 }
 
 // Records returns the list of resource records in all zones.

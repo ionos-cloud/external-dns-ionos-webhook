@@ -1,0 +1,91 @@
+package ionos
+
+import (
+	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
+	"github.com/stretchr/testify/require"
+	"testing"
+)
+
+type myRecord struct {
+	name    string
+	content string
+}
+
+func TestRetrieveRecords(t *testing.T) {
+	myRecords := []*myRecord{
+		{"a.com", "content1-a.com"},
+		{"a.com", "content2-a.com"},
+		{"b.com", "content-b.com"},
+	}
+	eps := NewEndpointCollection[*myRecord](myRecords,
+		func(record *myRecord) *endpoint.Endpoint {
+			return &endpoint.Endpoint{
+				DNSName:    record.name,
+				RecordType: "A",
+				Targets:    []string{record.content},
+				RecordTTL:  300,
+			}
+		}, func(record *myRecord) string {
+			return record.name
+		})
+	endPoints := eps.RetrieveEndPoints()
+	require.EqualValues(t, 2, len(endPoints))
+	require.EqualValues(t, &endpoint.Endpoint{
+		DNSName:    "a.com",
+		RecordType: "A",
+		Targets:    []string{"content1-a.com", "content2-a.com"},
+		RecordTTL:  300,
+	}, endPoints[0])
+	require.EqualValues(t, &endpoint.Endpoint{
+		DNSName:    "b.com",
+		RecordType: "A",
+		Targets:    []string{"content-b.com"},
+		RecordTTL:  300,
+	}, endPoints[1])
+
+}
+
+type myZone struct {
+	id   string
+	name string
+}
+
+func TestFindZoneByName(t *testing.T) {
+	myZones := []*myZone{
+		{"1", "a.com"},
+		{"2", "a1.a.com"},
+		{"3", "a2.a.com"},
+		{"4", "b.com"},
+		{"5", "org"},
+	}
+	zt := NewZoneTree[*myZone]()
+
+	for _, zone := range myZones {
+		zt.AddZone(zone, zone.name)
+	}
+
+	require.EqualValues(t, myZones[0], zt.FindZoneByDomainName("a.com"))
+
+	require.EqualValues(t, myZones[1], zt.FindZoneByDomainName("a1.a.com"))
+
+	require.EqualValues(t, myZones[2], zt.FindZoneByDomainName("a2.a.com"))
+
+	require.EqualValues(t, myZones[0], zt.FindZoneByDomainName("b.a.com"))
+
+	require.EqualValues(t, myZones[0], zt.FindZoneByDomainName("e.f.goo.a.com"))
+
+	require.EqualValues(t, myZones[3], zt.FindZoneByDomainName("b.com"))
+
+	require.EqualValues(t, myZones[3], zt.FindZoneByDomainName("a.b.com"))
+	require.EqualValues(t, myZones[0], zt.FindZoneByDomainName("a.a.com"))
+
+	require.EqualValues(t, myZones[3], zt.FindZoneByDomainName("e.b.com"))
+
+	require.EqualValues(t, myZones[4], zt.FindZoneByDomainName("org"))
+	require.EqualValues(t, myZones[4], zt.FindZoneByDomainName("de.org"))
+	require.EqualValues(t, myZones[4], zt.FindZoneByDomainName("org.org"))
+
+	require.Nil(t, zt.FindZoneByDomainName("com"))
+	require.Nil(t, zt.FindZoneByDomainName("com.a"))
+
+}

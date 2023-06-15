@@ -25,21 +25,12 @@ func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
 
-	p, err := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{}, true)
-	if err != nil {
-		t.Errorf("should not fail, %s", err)
-	}
-
+	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{}, true)
 	require.Equal(t, true, p.dryRun)
 	require.Equal(t, true, p.domainFilter.IsConfigured())
 	require.Equal(t, false, p.domainFilter.Match("b.de."))
 
-	p, err = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{}, false)
-
-	if err != nil {
-		t.Errorf("should not fail, %s", err)
-	}
-
+	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{}, false)
 	require.Equal(t, false, p.dryRun)
 	require.Equal(t, false, p.domainFilter.IsConfigured())
 	require.Equal(t, true, p.domainFilter.Match("a.de."))
