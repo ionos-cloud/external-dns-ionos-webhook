@@ -1,9 +1,10 @@
 package ionos
 
 import (
+	"testing"
+
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type myRecord struct {
@@ -42,21 +43,19 @@ func TestRetrieveRecords(t *testing.T) {
 		Targets:    []string{"content-b.com"},
 		RecordTTL:  300,
 	}, endPoints[1])
-
 }
 
 type myZone struct {
-	id   string
 	name string
 }
 
 func TestFindZoneByName(t *testing.T) {
 	myZones := []*myZone{
-		{"1", "a.com"},
-		{"2", "a1.a.com"},
-		{"3", "a2.a.com"},
-		{"4", "b.com"},
-		{"5", "org"},
+		{"a.com"},
+		{"a1.a.com"},
+		{"a2.a.com"},
+		{"b.com"},
+		{"org"},
 	}
 	zt := NewZoneTree[*myZone]()
 
@@ -87,5 +86,4 @@ func TestFindZoneByName(t *testing.T) {
 
 	require.Nil(t, zt.FindZoneByDomainName("com"))
 	require.Nil(t, zt.FindZoneByDomainName("com.a"))
-
 }

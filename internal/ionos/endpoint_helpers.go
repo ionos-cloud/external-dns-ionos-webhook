@@ -1,9 +1,10 @@
 package ionos
 
 import (
+	"strings"
+
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
-	"strings"
 )
 
 func GetCreateDeleteSetsFromChanges(changes *plan.Changes) ([]*endpoint.Endpoint, []*endpoint.Endpoint) {
@@ -82,13 +83,6 @@ type zoneNode[Z any] struct {
 	zone     Z
 	parent   *zoneNode[Z]
 	children map[string]*zoneNode[Z]
-}
-
-func (d *zoneNode[Z]) visitZoneNodes(visitor func(*zoneNode[Z])) {
-	visitor(d)
-	for _, child := range d.children {
-		child.visitZoneNodes(visitor)
-	}
 }
 
 func (d *zoneNode[Z]) visitZoneNodesByName(name string, visitor func(*zoneNode[Z])) {
