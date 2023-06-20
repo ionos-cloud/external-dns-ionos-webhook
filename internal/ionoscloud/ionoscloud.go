@@ -177,15 +177,14 @@ func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
 		return ""
 	}
 	log.Infof(
-		"Creating ionos core DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', Debug: '%v'",
+		"Creating ionos cloud DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', Debug: '%v'",
 		ionosConfig.APIEndpointURL,
 		ionosConfig.AuthHeader,
 		ionosConfig.Debug,
 	)
 	log.Debugf("JWT: %s", jwtString())
 
-	sdkConfig := sdk.NewConfiguration("", "", "", ionosConfig.APIEndpointURL)
-	sdkConfig.AddDefaultHeader(ionosConfig.AuthHeader, ionosConfig.APIKey)
+	sdkConfig := sdk.NewConfiguration("", "", ionosConfig.APIKey, ionosConfig.APIEndpointURL)
 	sdkConfig.Debug = ionosConfig.Debug
 	apiClient := sdk.NewAPIClient(sdkConfig)
 	return apiClient
