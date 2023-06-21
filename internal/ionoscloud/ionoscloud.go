@@ -117,17 +117,17 @@ func (c *DNSClient) GetZone(ctx context.Context, zoneId string) (sdk.ZoneRead, e
 
 // CreateRecord client create record method
 func (c *DNSClient) CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error {
-	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, record.GetProperties().GetName())
-	logger.Debugf("creating record: %v ...", record)
+	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, *record.GetProperties().GetName())
+	logger.Debugf("creating record ...")
 	if !c.dryRun {
 		_, _, err := c.client.RecordsApi.ZonesRecordsPost(ctx, zoneId).RecordCreate(record).Execute()
 		if err != nil {
 			logger.Errorf("failed to create record: %v", err)
 			return err
 		}
-		logger.Debugf("record created successfully")
+		logger.Debug("record created successfully")
 	} else {
-		logger.Debugf("** DRY RUN **, record not created")
+		logger.Info("** DRY RUN **, record not created")
 	}
 	return nil
 }
@@ -142,9 +142,9 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 			logger.Errorf("failed to delete record: %v", err)
 			return err
 		}
-		logger.Debugf("record deleted successfully")
+		logger.Debug("record deleted successfully")
 	} else {
-		logger.Debugf("** DRY RUN **, record not deleted")
+		logger.Info("** DRY RUN **, record not deleted")
 	}
 	return nil
 }
@@ -261,8 +261,10 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	}
 
 	recordsToCreate := ionos.NewRecordCollection[*sdk.RecordCreate](epToCreate, func(ep *endpoint.Endpoint) []*sdk.RecordCreate {
+		logger := log.WithField(logFieldRecordName, ep.DNSName)
 		zone := zt.FindZoneByDomainName(ep.DNSName)
 		if zone.Id == nil {
+			logger.Warn("no zone found for record, skipping record creation")
 			return nil
 		}
 		result := make([]*sdk.RecordCreate, 0)
@@ -287,72 +289,6 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	return nil
 }
 
-//func endpointFitRecord(ep *endpoint.Endpoint, record *sdk.Record) bool {
-//	if *record.GetName() == ep.DNSName &&
-//		*record.GetType() == ep.RecordType {
-//		for _, target := range ep.Targets {
-//			if *record.GetContent() == target {
-//				return true
-//			}
-//		}
-//	}
-//	return false
-//}
-//
-//func (p *Provider) createEndpoint(ctx context.Context, ep *endpoint.Endpoint, zt *ionos.ZoneTree) error {
-//	zoneId := zt.FindZoneByDomainName(ep.DNSName)
-//	records := ionos.EndpointToRecords(ep, func(name, t, content string, ttl int64) *sdk.Record {
-//		record := sdk.NewRecord(name, t, content)
-//		if ttl > 0 {
-//			record.SetTtl(int32(ttl))
-//		}
-//		return record
-//	})
-//	for _, record := range records {
-//		err := p.client.CreateRecord(ctx, zoneId, *sdk.NewRecordCreate(*record))
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	return nil
-//}
-//
-//func (p *Provider) recordsOfEndpoint(ctx context.Context, e *endpoint.Endpoint, zt *ionos.ZoneTree) (*sdk.RecordReadList, error) {
-//	zoneId := zt.FindZoneByDomainName(e.DNSName)
-//	zoneRead, err := p.client.GetZone(ctx, zoneId)
-//	if err != nil {
-//		return nil, err
-//	}
-//	allrecords, err := p.client.GetZoneRecords(ctx, *zoneRead.GetId())
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &allrecords, nil
-//}
-//
-//func (p *Provider) deleteEndpoint(ctx context.Context, e *endpoint.Endpoint, zt *ionos.ZoneTree[*sdk.ZoneRead]) error {
-//	zoneRead := zt.FindZoneByDomainName(e.DNSName)
-//	if zoneRead == nil {
-//		return fmt.Errorf("no zone for endpoint name '%s' found", e.DNSName)
-//	}
-//	records, err := p.client.GetZoneRecords(ctx, *zoneRead.GetId())
-//	if err != nil {
-//		return err
-//	}
-//	for _, recordRead := range *records.GetItems() {
-//		record := recordRead.GetProperties()
-//		if endpointFitRecord(e, record) {
-//			err := p.client.DeleteRecord(ctx, *zoneRead.GetId(), *recordRead.GetId())
-//			if err != nil {
-//				return err
-//			}
-//		} else {
-//			log.Warnf("no records from zone '%s'(id: '%s') matched endpoint: %v", *zoneRead.GetProperties().GetZoneName(), *zoneRead.GetId(), e)
-//		}
-//	}
-//	return nil
-//}
-
 func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.ZoneRead], error) {
 	zt := ionos.NewZoneTree[sdk.ZoneRead]()
 	zoneReadList, err := p.client.GetZones(ctx)
@@ -366,18 +302,3 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 	}
 	return zt, nil
 }
-
-//func checkZone(zone *sdk.ZoneRead) error {
-//	if zone.HasId() && zone.HasProperties() && zone.GetProperties().HasZoneName() {
-//		return nil
-//	}
-//	return fmt.Errorf("zone has no id, or name")
-//}
-//
-//func checkRecord(record *sdk.RecordRead) error {
-//	if record.HasId() && record.HasProperties() &&
-//		record.GetProperties().HasName() && record.GetProperties().HasType() {
-//		return nil
-//	}
-//	return fmt.Errorf("record has no id, or name")
-//}
