@@ -13,20 +13,20 @@ type myRecord struct {
 }
 
 func TestRetrieveRecords(t *testing.T) {
-	myRecords := []*myRecord{
+	myRecords := []myRecord{
 		{"a.com", "content1-a.com"},
 		{"a.com", "content2-a.com"},
 		{"b.com", "content-b.com"},
 	}
-	eps := NewEndpointCollection[*myRecord](myRecords,
-		func(record *myRecord) *endpoint.Endpoint {
+	eps := NewEndpointCollection[myRecord](myRecords,
+		func(record myRecord) *endpoint.Endpoint {
 			return &endpoint.Endpoint{
 				DNSName:    record.name,
 				RecordType: "A",
 				Targets:    []string{record.content},
 				RecordTTL:  300,
 			}
-		}, func(record *myRecord) string {
+		}, func(record myRecord) string {
 			return record.name
 		})
 	endPoints := eps.RetrieveEndPoints()
