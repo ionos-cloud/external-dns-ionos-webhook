@@ -1,4 +1,4 @@
-module github.com/ionos-cloud/external-dns-ionos-plugin
+module github.com/ionos-cloud/external-dns-ionos-webhook
 
 go 1.20
 

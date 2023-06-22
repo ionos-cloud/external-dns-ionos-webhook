@@ -3,8 +3,8 @@ package dnsprovider
 import (
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionoscore"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
