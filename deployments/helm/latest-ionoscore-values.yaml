@@ -43,7 +43,7 @@ sidecars:
       - name: DRY_RUN
         value: "true"
 #      - name: DOMAIN_FILTER
-#        value: "alexkrieg.com,alexkrieg.de"
+#        value: "test.com,test.de"
 #      - name: EXCLUDE_DOMAIN_FILTER
 #        value: "test.com,test.de"
 #      - name: REGEXP_DOMAIN_FILTER
@@ -53,7 +53,7 @@ sidecars:
       - name: SERVER_HOST
         value: "0.0.0.0"
       - name: IONOS_API_KEY
-        value: "put you api key here"
+        value: "put your api key here"
       - name: IONOS_DEBUG
         value: "false"
 # the following values are derived automatically from the api key
