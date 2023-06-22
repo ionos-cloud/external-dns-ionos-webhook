@@ -11,7 +11,6 @@ import (
 
 	"github.com/ionos-cloud/external-dns-ionos-plugin/cmd/plugin/init/configuration"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionos"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionoscloud"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionoscore"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/provider"
@@ -40,7 +39,8 @@ var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosCon
 
 var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) (provider.Provider, error) {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
-	return ionoscloud.NewProvider(domainFilter, ionosConfig, dryRun)
+	//return ionoscloud.NewProvider(domainFilter, ionosConfig, dryRun)
+	return nil, fmt.Errorf("ionos cloud DNS is not supported in this version")
 }
 
 func Init(config configuration.Config) (provider.Provider, error) {
