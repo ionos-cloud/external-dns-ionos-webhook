@@ -145,6 +145,23 @@ func TestRecords(t *testing.T) {
 				}
 			}),
 		},
+		{
+			name: "read multiple pages of records ",
+			givenRecords: createRecordReadList(3, 0, func(i int) (string, string, int32, string) {
+				if i < 2 {
+					return "a.de", "A", int32(300), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
+				} else {
+					return "c.de", "A", int32(300), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
+				}
+			}),
+			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
+				if i == 0 {
+					return "a.de", "A", endpoint.TTL(300), []string{"1.1.1.1", "2.2.2.2"}
+				} else {
+					return "c.de", "A", endpoint.TTL(300), []string{"3.3.3.3"}
+				}
+			}),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -424,6 +441,61 @@ func TestAdjustEndpoints(t *testing.T) {
 	require.Equal(t, endpoints, actualEndpoints)
 }
 
+func TestReadMaxRecords(t *testing.T) {
+	provider := &Provider{client: pagingMockDNSService{t: t}}
+	endpoints, err := provider.Records(context.Background())
+	require.NoError(t, err)
+	require.Len(t, endpoints, recordReadMaxCount)
+}
+
+func TestReadMaxZones(t *testing.T) {
+	provider := &Provider{client: pagingMockDNSService{t: t}}
+	zt, err := provider.createZoneTree(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, zoneReadMaxCount, zt.GetZonesCount())
+}
+
+type pagingMockDNSService struct {
+	t *testing.T
+}
+
+func (p pagingMockDNSService) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
+	require.Equal(p.t, 0, int(offset)%recordReadLimit)
+	records := createRecordReadList(recordReadLimit, int(offset), func(i int) (string, string, int32, string) {
+		return fmt.Sprintf("a%d.de", int(offset)+i), "A", 300, "1.1.1.1"
+	})
+	return records, nil
+}
+
+func (pagingMockDNSService) GetZoneRecords(ctx context.Context, zoneId string) (sdk.RecordReadList, error) {
+	panic("implement me")
+}
+
+func (pagingMockDNSService) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error) {
+	panic("implement me")
+}
+
+func (p pagingMockDNSService) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
+	require.Equal(p.t, 0, int(offset)%zoneReadLimit)
+	zones := createZoneReadList(zoneReadLimit, func(i int) (string, string) {
+		idStr := fmt.Sprintf("%d", int(offset)+i)
+		return idStr, fmt.Sprintf("zone%s.de", idStr)
+	})
+	return zones, nil
+}
+
+func (pagingMockDNSService) GetZone(ctx context.Context, zoneId string) (sdk.ZoneRead, error) {
+	panic("implement me")
+}
+
+func (pagingMockDNSService) DeleteRecord(ctx context.Context, zoneId string, recordId string) error {
+	panic("implement me")
+}
+
+func (pagingMockDNSService) CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error {
+	panic("implement me")
+}
+
 type mockDNSClient struct {
 	returnError    error
 	allRecords     sdk.RecordReadList
@@ -433,7 +505,7 @@ type mockDNSClient struct {
 	deletedRecords map[string][]string           // zoneId -> recordIds
 }
 
-func (c *mockDNSClient) GetAllRecords(ctx context.Context) (sdk.RecordReadList, error) {
+func (c *mockDNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
 	log.Debugf("GetAllRecords called")
 	return c.allRecords, c.returnError
 }
@@ -455,7 +527,7 @@ func (c *mockDNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, n
 	return sdk.RecordReadList{Items: &result}, c.returnError
 }
 
-func (c *mockDNSClient) GetZones(ctx context.Context) (sdk.ZoneReadList, error) {
+func (c *mockDNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
 	log.Debug("GetZones called ")
 	if c.allZones.HasItems() {
 		for _, zone := range *c.allZones.GetItems() {

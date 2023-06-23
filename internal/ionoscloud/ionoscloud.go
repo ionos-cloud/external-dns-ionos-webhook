@@ -19,6 +19,14 @@ const (
 	logFieldZoneID     = "zoneID"
 	logFieldRecordID   = "recordID"
 	logFieldRecordName = "recordName"
+	// max number of records to read per request
+	recordReadLimit = 1000
+	// max number of records to read in total
+	recordReadMaxCount = 10 * recordReadLimit
+	// max number of zones to read per request
+	zoneReadLimit = 1000
+	// max number of zones to read in total
+	zoneReadMaxCount = 10 * zoneReadLimit
 )
 
 type DNSClient struct {
@@ -27,19 +35,19 @@ type DNSClient struct {
 }
 
 type DNSService interface {
-	GetAllRecords(ctx context.Context) (sdk.RecordReadList, error)
+	GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error)
 	GetZoneRecords(ctx context.Context, zoneId string) (sdk.RecordReadList, error)
 	GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error)
-	GetZones(ctx context.Context) (sdk.ZoneReadList, error)
+	GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error)
 	GetZone(ctx context.Context, zoneId string) (sdk.ZoneRead, error)
 	DeleteRecord(ctx context.Context, zoneId string, recordId string) error
 	CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error
 }
 
 // GetAllRecords retrieve all records https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
-func (c *DNSClient) GetAllRecords(ctx context.Context) (sdk.RecordReadList, error) {
-	log.Debug("get all records ...")
-	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Execute()
+func (c *DNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
+	log.Debugf("get all records with offset %d ...", offset)
+	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).Execute()
 	if err != nil {
 		log.Errorf("failed to get all records: %v", err)
 		return records, err
@@ -87,9 +95,9 @@ func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name 
 }
 
 // GetZones client get zones method
-func (c *DNSClient) GetZones(ctx context.Context) (sdk.ZoneReadList, error) {
+func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
 	log.Debug("get all zones ...")
-	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Execute()
+	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).Execute()
 	if err != nil {
 		log.Errorf("failed to get all zones: %v", err)
 		return zones, err
@@ -190,16 +198,34 @@ func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
 	return apiClient
 }
 
+func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error) {
+	var result []sdk.RecordRead
+	offset := int32(0)
+	for {
+		recordReadList, err := p.client.GetAllRecords(ctx, offset)
+		if err != nil {
+			return nil, err
+		}
+		if recordReadList.HasItems() {
+			items := *recordReadList.GetItems()
+			result = append(result, items...)
+			offset += recordReadLimit
+			if len(items) < recordReadLimit || offset >= recordReadMaxCount {
+				break
+			}
+		} else {
+			break
+		}
+	}
+	return result, nil
+}
+
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
-	allRecordReadList, err := p.client.GetAllRecords(ctx)
+	allRecords, err := p.readAllRecords(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !allRecordReadList.HasItems() {
-		return []*endpoint.Endpoint{}, nil
-	}
-
-	epCollection := ionos.NewEndpointCollection[sdk.RecordRead](*allRecordReadList.GetItems(),
+	epCollection := ionos.NewEndpointCollection[sdk.RecordRead](allRecords,
 		func(recordRead sdk.RecordRead) *endpoint.Endpoint {
 			record := *recordRead.GetProperties()
 			return endpoint.NewEndpointWithTTL(*record.GetName(), *record.GetType(), endpoint.TTL(*record.GetTtl()), *record.GetContent())
@@ -291,14 +317,26 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 
 func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.ZoneRead], error) {
 	zt := ionos.NewZoneTree[sdk.ZoneRead]()
-	zoneReadList, err := p.client.GetZones(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if zoneReadList.HasItems() {
-		for _, zoneRead := range *zoneReadList.GetItems() {
-			zt.AddZone(zoneRead, *zoneRead.GetProperties().GetZoneName())
+	var allZones []sdk.ZoneRead
+	offset := int32(0)
+	for {
+		zoneReadList, err := p.client.GetZones(ctx, offset)
+		if err != nil {
+			return nil, err
 		}
+		if zoneReadList.HasItems() {
+			items := *zoneReadList.GetItems()
+			allZones = append(allZones, items...)
+			offset += zoneReadLimit
+			if len(items) < zoneReadLimit || offset >= zoneReadMaxCount {
+				break
+			}
+		} else {
+			break
+		}
+	}
+	for _, zoneRead := range allZones {
+		zt.AddZone(zoneRead, *zoneRead.GetProperties().GetZoneName())
 	}
 	return zt, nil
 }
