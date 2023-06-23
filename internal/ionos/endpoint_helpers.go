@@ -123,6 +123,7 @@ func (d *zoneNode[Z]) addZone(z Z, sub string) {
 
 func (t *ZoneTree[Z]) AddZone(zone Z, domainName string) {
 	t.root.addZone(zone, domainName)
+	t.count++
 }
 
 // FindZoneByDomainName returns the zone that matches the given domain name.
@@ -134,13 +135,19 @@ func (t *ZoneTree[Z]) FindZoneByDomainName(domainName string) Z {
 	return result
 }
 
+func (t *ZoneTree[Z]) GetZonesCount() int {
+	return t.count
+}
+
 type ZoneTree[Z any] struct {
-	root *zoneNode[Z]
+	count int
+	root  *zoneNode[Z]
 }
 
 // NewZoneTree creates a new ZoneTree.
 func NewZoneTree[Z any]() *ZoneTree[Z] {
 	return &ZoneTree[Z]{
+		count: 0,
 		root: &zoneNode[Z]{
 			children: make(map[string]*zoneNode[Z]),
 		},
