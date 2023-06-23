@@ -1,8 +1,9 @@
 package dnsprovider
 
 import (
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 	"testing"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"

@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 	"regexp"
 	"strings"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 
 	"github.com/caarlos0/env/v8"
 
