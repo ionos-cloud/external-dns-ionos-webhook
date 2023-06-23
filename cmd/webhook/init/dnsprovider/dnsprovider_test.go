@@ -1,6 +1,7 @@
 package dnsprovider
 
 import (
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 	"testing"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
@@ -31,8 +32,7 @@ func TestInit(t *testing.T) {
 			env: map[string]string{
 				"IONOS_API_KEY": "algorithm.eyAiaXNzIiA6ICJpb25vc2Nsb3VkIiB9.signature",
 			},
-			providerType:  "cloud",
-			expectedError: "failed to initialize IONOS provider: ionos cloud DNS is not supported in this version",
+			providerType: "cloud",
 		},
 		{
 			name:          "without api key you are not able to create provider",
@@ -56,11 +56,10 @@ func TestInit(t *testing.T) {
 			if tc.providerType == "core" {
 				_, ok := dnsProvider.(*ionoscore.Provider)
 				assert.True(t, ok, "provider is not of type ionoscore.Provider")
+			} else if tc.providerType == "cloud" {
+				_, ok := dnsProvider.(*ionoscloud.Provider)
+				assert.True(t, ok, "provider is not of type ionoscloud.Provider")
 			}
-			//} else if tc.providerType == "cloud" {
-			//	_, ok := dnsProvider.(*ionoscloud.Provider)
-			//	assert.True(t, ok, "provider is not of type ionoscloud.Provider")
-			//}
 		})
 	}
 }

@@ -6,9 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionos"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

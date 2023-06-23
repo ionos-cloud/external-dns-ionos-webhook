@@ -3,8 +3,8 @@ package ionos
 import (
 	"strings"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
 )
 
 func GetCreateDeleteSetsFromChanges(changes *plan.Changes) ([]*endpoint.Endpoint, []*endpoint.Endpoint) {

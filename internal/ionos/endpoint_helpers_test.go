@@ -3,7 +3,7 @@ package ionos
 import (
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/stretchr/testify/require"
 )
 

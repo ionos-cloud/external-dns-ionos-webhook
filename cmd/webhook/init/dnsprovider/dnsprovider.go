@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 	"regexp"
 	"strings"
 
@@ -39,8 +40,7 @@ var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosCon
 
 var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) provider.Provider {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
-	// return ionoscloud.NewProvider(domainFilter, ionosConfig, dryRun)
-	return nil, fmt.Errorf("ionos cloud DNS is not supported in this version")
+	return ionoscloud.NewProvider(domainFilter, ionosConfig, dryRun)
 }
 
 func Init(config configuration.Config) (provider.Provider, error) {

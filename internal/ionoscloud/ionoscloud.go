@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ionos-cloud/external-dns-ionos-plugin/internal/ionos"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/plan"
-	"github.com/ionos-cloud/external-dns-ionos-plugin/pkg/provider"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 )
