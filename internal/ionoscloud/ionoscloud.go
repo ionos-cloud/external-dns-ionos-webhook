@@ -260,6 +260,9 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	if err := recordsToDelete.ForEach(func(recordRead sdk.RecordRead) error {
 		domainName := *recordRead.GetProperties().GetName()
 		zone := zt.FindZoneByDomainName(domainName)
+		if !zone.HasId() {
+			return fmt.Errorf("no zone found for domain '%s'", domainName)
+		}
 		err := p.client.DeleteRecord(ctx, *zone.GetId(), *recordRead.GetId())
 		return err
 	}); err != nil {
@@ -269,8 +272,8 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	recordsToCreate := ionos.NewRecordCollection[*sdk.RecordCreate](epToCreate, func(ep *endpoint.Endpoint) []*sdk.RecordCreate {
 		logger := log.WithField(logFieldRecordName, ep.DNSName)
 		zone := zt.FindZoneByDomainName(ep.DNSName)
-		if zone.Id == nil {
-			logger.Warn("no zone found for record, skipping record creation")
+		if !zone.HasId() {
+			logger.Warnf("no zone found for domain '%s', skipping record creation", ep.DNSName)
 			return nil
 		}
 		result := make([]*sdk.RecordCreate, 0)
@@ -287,6 +290,9 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	if err := recordsToCreate.ForEach(func(recordCreate *sdk.RecordCreate) error {
 		domainName := *recordCreate.GetProperties().GetName()
 		zone := zt.FindZoneByDomainName(domainName)
+		if !zone.HasId() {
+			return fmt.Errorf("no zone found for domain '%s'", domainName)
+		}
 		err := p.client.CreateRecord(ctx, *zone.GetId(), *recordCreate)
 		return err
 	}); err != nil {

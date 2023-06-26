@@ -17,80 +17,6 @@ import (
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-func RandStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
-
-func createZoneReadList(count int, modifier func(int) (string, string)) sdk.ZoneReadList {
-	zones := make([]sdk.ZoneRead, count)
-	for i := 0; i < count; i++ {
-		id, name := modifier(i)
-		zones[i] = sdk.ZoneRead{
-			Id: sdk.PtrString(id),
-			Properties: &sdk.Zone{
-				ZoneName: sdk.PtrString(name),
-				Enabled:  sdk.PtrBool(true),
-			},
-		}
-	}
-	return sdk.ZoneReadList{Items: &zones}
-}
-
-func createRecordCreateSlice(count int, modifier func(int) (string, string, int32, string)) []sdk.RecordCreate {
-	records := make([]sdk.RecordCreate, count)
-	for i := 0; i < count; i++ {
-		name, typ, ttl, content := modifier(i)
-		records[i] = sdk.RecordCreate{
-			Properties: &sdk.Record{
-				Name:    sdk.PtrString(name),
-				Type:    sdk.PtrString(typ),
-				Ttl:     sdk.PtrInt32(ttl),
-				Content: sdk.PtrString(content),
-				Enabled: sdk.PtrBool(true),
-			},
-		}
-	}
-	return records
-}
-
-func createRecordReadList(count, idOffset int, modifier func(int) (string, string, int32, string)) sdk.RecordReadList {
-	records := make([]sdk.RecordRead, count)
-	for i := 0; i < count; i++ {
-		name, typ, ttl, content := modifier(i)
-		// use random number as id
-		id := i + idOffset
-		records[i] = sdk.RecordRead{
-			Id: sdk.PtrString(fmt.Sprintf("%d", id)),
-			Properties: &sdk.Record{
-				Name:    sdk.PtrString(name),
-				Type:    sdk.PtrString(typ),
-				Ttl:     sdk.PtrInt32(ttl),
-				Content: sdk.PtrString(content),
-			},
-		}
-	}
-	return sdk.RecordReadList{Items: &records}
-}
-
-func createEndpointSlice(count int, modifier func(int) (string, string, endpoint.TTL, []string)) []*endpoint.Endpoint {
-	endpoints := make([]*endpoint.Endpoint, count)
-	for i := 0; i < count; i++ {
-		name, typ, ttl, targets := modifier(i)
-		endpoints[i] = &endpoint.Endpoint{
-			DNSName:    name,
-			RecordType: typ,
-			Targets:    targets,
-			RecordTTL:  ttl,
-			Labels:     map[string]string{},
-		}
-	}
-	return endpoints
-}
-
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
@@ -119,6 +45,13 @@ func TestRecords(t *testing.T) {
 			name:              "no records",
 			givenRecords:      sdk.RecordReadList{},
 			expectedEndpoints: []*endpoint.Endpoint{},
+		},
+		{
+			name:              "error reading records",
+			givenRecords:      sdk.RecordReadList{},
+			givenError:        fmt.Errorf("test error"),
+			expectedEndpoints: []*endpoint.Endpoint{},
+			expectedError:     fmt.Errorf("test error"),
 		},
 		{
 			name: "multiple A records",
@@ -222,6 +155,14 @@ func TestApplyChanges(t *testing.T) {
 			whenChanges:            &plan.Changes{},
 			expectedRecordsCreated: nil,
 			expectedRecordsDeleted: nil,
+		},
+		{
+			name:             "error applying changes",
+			givenZones:       createZoneReadList(0, nil),
+			givenZoneRecords: map[string]sdk.RecordReadList{},
+			givenError:       fmt.Errorf("test error"),
+			whenChanges:      &plan.Changes{},
+			expectedError:    fmt.Errorf("test error"),
 		},
 		{
 			name: "create one record in a blank zone",
@@ -638,4 +579,78 @@ func (c *mockDNSClient) DeleteRecord(ctx context.Context, zoneId string, recordI
 	}
 	c.deletedRecords[zoneId] = append(c.deletedRecords[zoneId], recordId)
 	return c.returnError
+}
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func createZoneReadList(count int, modifier func(int) (string, string)) sdk.ZoneReadList {
+	zones := make([]sdk.ZoneRead, count)
+	for i := 0; i < count; i++ {
+		id, name := modifier(i)
+		zones[i] = sdk.ZoneRead{
+			Id: sdk.PtrString(id),
+			Properties: &sdk.Zone{
+				ZoneName: sdk.PtrString(name),
+				Enabled:  sdk.PtrBool(true),
+			},
+		}
+	}
+	return sdk.ZoneReadList{Items: &zones}
+}
+
+func createRecordCreateSlice(count int, modifier func(int) (string, string, int32, string)) []sdk.RecordCreate {
+	records := make([]sdk.RecordCreate, count)
+	for i := 0; i < count; i++ {
+		name, typ, ttl, content := modifier(i)
+		records[i] = sdk.RecordCreate{
+			Properties: &sdk.Record{
+				Name:    sdk.PtrString(name),
+				Type:    sdk.PtrString(typ),
+				Ttl:     sdk.PtrInt32(ttl),
+				Content: sdk.PtrString(content),
+				Enabled: sdk.PtrBool(true),
+			},
+		}
+	}
+	return records
+}
+
+func createRecordReadList(count, idOffset int, modifier func(int) (string, string, int32, string)) sdk.RecordReadList {
+	records := make([]sdk.RecordRead, count)
+	for i := 0; i < count; i++ {
+		name, typ, ttl, content := modifier(i)
+		// use random number as id
+		id := i + idOffset
+		records[i] = sdk.RecordRead{
+			Id: sdk.PtrString(fmt.Sprintf("%d", id)),
+			Properties: &sdk.Record{
+				Name:    sdk.PtrString(name),
+				Type:    sdk.PtrString(typ),
+				Ttl:     sdk.PtrInt32(ttl),
+				Content: sdk.PtrString(content),
+			},
+		}
+	}
+	return sdk.RecordReadList{Items: &records}
+}
+
+func createEndpointSlice(count int, modifier func(int) (string, string, endpoint.TTL, []string)) []*endpoint.Endpoint {
+	endpoints := make([]*endpoint.Endpoint, count)
+	for i := 0; i < count; i++ {
+		name, typ, ttl, targets := modifier(i)
+		endpoints[i] = &endpoint.Endpoint{
+			DNSName:    name,
+			RecordType: typ,
+			Targets:    targets,
+			RecordTTL:  ttl,
+			Labels:     map[string]string{},
+		}
+	}
+	return endpoints
 }
