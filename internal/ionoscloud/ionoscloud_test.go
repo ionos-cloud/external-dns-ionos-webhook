@@ -111,6 +111,7 @@ func TestRecords(t *testing.T) {
 		name              string
 		givenRecords      sdk.RecordReadList
 		givenError        error
+		givenDomainFilter endpoint.DomainFilter
 		expectedEndpoints []*endpoint.Endpoint
 		expectedError     error
 	}{
@@ -124,6 +125,19 @@ func TestRecords(t *testing.T) {
 			givenRecords: createRecordReadList(3, 0, func(i int) (string, string, int32, string) {
 				return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
 			}),
+			expectedEndpoints: createEndpointSlice(3, func(i int) (string, string, endpoint.TTL, []string) {
+				return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", endpoint.TTL((i + 1) * 100), []string{fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)}
+			}),
+		},
+		{
+			name: "multiple records filtered by domain",
+			givenRecords: createRecordReadList(6, 0, func(i int) (string, string, int32, string) {
+				if i < 3 {
+					return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
+				}
+				return "b" + fmt.Sprintf("%d", i+1) + ".b.de", "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
+			}),
+			givenDomainFilter: endpoint.NewDomainFilter([]string{"a.de"}),
 			expectedEndpoints: createEndpointSlice(3, func(i int) (string, string, endpoint.TTL, []string) {
 				return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", endpoint.TTL((i + 1) * 100), []string{fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)}
 			}),
@@ -169,7 +183,7 @@ func TestRecords(t *testing.T) {
 				allRecords:  tc.givenRecords,
 				returnError: tc.givenError,
 			}
-			provider := &Provider{client: mockDnsClient}
+			provider := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
 			endpoints, err := provider.Records(ctx)
 			if tc.expectedError != nil {
 				require.Error(t, err)
@@ -195,6 +209,7 @@ func TestApplyChanges(t *testing.T) {
 		givenZones             sdk.ZoneReadList
 		givenZoneRecords       map[string]sdk.RecordReadList
 		givenError             error
+		givenDomainFilter      endpoint.DomainFilter
 		whenChanges            *plan.Changes
 		expectedError          error
 		expectedRecordsCreated map[string][]sdk.RecordCreate
@@ -226,6 +241,23 @@ func TestApplyChanges(t *testing.T) {
 					return "a.de", "A", int32(300), "1.2.3.4"
 				}),
 			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a record which is filtered out from the domain filter",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, nil),
+			},
+			givenDomainFilter: endpoint.NewDomainFilter([]string{"b.de"}),
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+				}),
+			},
+			expectedRecordsCreated: nil,
 			expectedRecordsDeleted: nil,
 		},
 		{
@@ -270,6 +302,24 @@ func TestApplyChanges(t *testing.T) {
 			expectedRecordsDeleted: map[string][]string{
 				deZoneId: {"0"},
 			},
+		},
+		{
+			name: "delete a record which is filtered out from the domain filter",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(1, 0, func(i int) (string, string, int32, string) {
+					return "a.de", "A", int32(300), "1.2.3.4"
+				}),
+			},
+			givenDomainFilter: endpoint.NewDomainFilter([]string{"b.de"}),
+			whenChanges: &plan.Changes{
+				Delete: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+				}),
+			},
+			expectedRecordsDeleted: nil,
 		},
 		{
 			name: "delete multiple records, in different zones",
@@ -368,6 +418,29 @@ func TestApplyChanges(t *testing.T) {
 			},
 		},
 		{
+			name: "update a record which is filtered out by domain filter, does nothing",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(1, 0, func(i int) (string, string, int32, string) {
+					return "a.de", "A", 300, "1.2.3.4"
+				}),
+			},
+			givenDomainFilter: endpoint.NewDomainFilter([]string{"b.de"}),
+
+			whenChanges: &plan.Changes{
+				UpdateOld: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+				}),
+				UpdateNew: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "A", endpoint.TTL(300), []string{"5.6.7.8"}
+				}),
+			},
+			expectedRecordsDeleted: nil,
+			expectedRecordsCreated: nil,
+		},
+		{
 			name: "update when old and new endpoint are the same, does nothing",
 			givenZones: createZoneReadList(1, func(i int) (string, string) {
 				return deZoneId, "de"
@@ -397,7 +470,7 @@ func TestApplyChanges(t *testing.T) {
 				zoneRecords: tc.givenZoneRecords,
 				returnError: tc.givenError,
 			}
-			provider := &Provider{client: mockDnsClient}
+			provider := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
 			err := provider.ApplyChanges(ctx, tc.whenChanges)
 			if tc.expectedError != nil {
 				require.Error(t, err)

@@ -217,7 +217,19 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 			break
 		}
 	}
-	return result, nil
+
+	if p.domainFilter.IsConfigured() {
+		filteredResult := make([]sdk.RecordRead, 0)
+		for _, record := range result {
+			recordName := *record.GetProperties().GetName()
+			if p.domainFilter.Match(recordName) {
+				filteredResult = append(filteredResult, record)
+			}
+		}
+		return filteredResult, nil
+	} else {
+		return result, nil
+	}
 }
 
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
@@ -336,7 +348,10 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 		}
 	}
 	for _, zoneRead := range allZones {
-		zt.AddZone(zoneRead, *zoneRead.GetProperties().GetZoneName())
+		zoneName := *zoneRead.GetProperties().GetZoneName()
+		if !p.domainFilter.IsConfigured() || p.domainFilter.Match(zoneName) {
+			zt.AddZone(zoneRead, zoneName)
+		}
 	}
 	return zt, nil
 }
