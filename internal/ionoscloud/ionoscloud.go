@@ -36,10 +36,8 @@ type DNSClient struct {
 
 type DNSService interface {
 	GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error)
-	GetZoneRecords(ctx context.Context, zoneId string) (sdk.RecordReadList, error)
 	GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error)
 	GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error)
-	GetZone(ctx context.Context, zoneId string) (sdk.ZoneRead, error)
 	DeleteRecord(ctx context.Context, zoneId string, recordId string) error
 	CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error
 }
@@ -58,23 +56,6 @@ func (c *DNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.Record
 		log.Debug("no records found")
 	}
 	return records, err
-}
-
-// GetZoneRecords retrieve all records from zone
-func (c *DNSClient) GetZoneRecords(ctx context.Context, zoneId string) (sdk.RecordReadList, error) {
-	logger := log.WithField(logFieldZoneID, zoneId)
-	logger.Debug("get records from zone")
-	records, _, err := c.client.RecordsApi.ZonesRecordsGet(ctx, zoneId).Execute()
-	if err != nil {
-		logger.Errorf("failed to get records from zone: %v", err)
-		return records, err
-	}
-	if records.HasItems() {
-		logger.Debugf("found %d records", len(*records.Items))
-	} else {
-		logger.Debug("no records found")
-	}
-	return records, nil
 }
 
 func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error) {
@@ -108,19 +89,6 @@ func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadLis
 		log.Debug("no zones found")
 	}
 	return zones, err
-}
-
-// GetZone client get zone method
-func (c *DNSClient) GetZone(ctx context.Context, zoneId string) (sdk.ZoneRead, error) {
-	logger := log.WithField(logFieldZoneID, zoneId)
-	logger.Debugf("find zone by id: '%s' ...", zoneId)
-	zone, _, err := c.client.ZonesApi.ZonesFindById(ctx, zoneId).Execute()
-	if err != nil {
-		logger.Errorf("failed to find zone: %v", err)
-		return zone, err
-	}
-	logger.Debugf("zone found: %v", zone)
-	return zone, err
 }
 
 // CreateRecord client create record method
