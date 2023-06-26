@@ -16,9 +16,13 @@ import (
 )
 
 const (
-	logFieldZoneID     = "zoneID"
-	logFieldRecordID   = "recordID"
-	logFieldRecordName = "recordName"
+	logFieldZoneID        = "zoneID"
+	logFieldRecordID      = "recordID"
+	logFieldRecordName    = "recordName"
+	logFieldRecordType    = "recordType"
+	logFieldRecordContent = "recordContent"
+	logFieldRecordTTL     = "recordTTL"
+	logFieldDomainFilter  = "domainFilter"
 	// max number of records to read per request
 	recordReadLimit = 1000
 	// max number of records to read in total
@@ -93,15 +97,18 @@ func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadLis
 
 // CreateRecord client create record method
 func (c *DNSClient) CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error {
-	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, *record.GetProperties().GetName())
+	recordProps := record.GetProperties()
+	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, *recordProps.GetName()).
+		WithField(logFieldRecordType, *recordProps.GetType()).WithField(logFieldRecordContent, *recordProps.GetContent()).
+		WithField(logFieldRecordTTL, *recordProps.GetTtl())
 	logger.Debugf("creating record ...")
 	if !c.dryRun {
-		_, _, err := c.client.RecordsApi.ZonesRecordsPost(ctx, zoneId).RecordCreate(record).Execute()
+		recordRead, _, err := c.client.RecordsApi.ZonesRecordsPost(ctx, zoneId).RecordCreate(record).Execute()
 		if err != nil {
 			logger.Errorf("failed to create record: %v", err)
 			return err
 		}
-		logger.Debug("record created successfully")
+		logger.Debugf("created successfully record with id: '%s'", *recordRead.GetId())
 	} else {
 		logger.Info("** DRY RUN **, record not created")
 	}
@@ -194,6 +201,8 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 				filteredResult = append(filteredResult, record)
 			}
 		}
+		logger := log.WithField(logFieldDomainFilter, p.domainFilter)
+		logger.Debugf("found %d records after applying domainFilter", len(filteredResult))
 		return filteredResult, nil
 	} else {
 		return result, nil
