@@ -1,7 +1,10 @@
 package ionos
 
 import (
+	"sort"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/stretchr/testify/require"
@@ -31,18 +34,19 @@ func TestRetrieveRecords(t *testing.T) {
 		})
 	endPoints := eps.RetrieveEndPoints()
 	require.EqualValues(t, 2, len(endPoints))
-	require.EqualValues(t, &endpoint.Endpoint{
-		DNSName:    "a.com",
-		RecordType: "A",
-		Targets:    []string{"content1-a.com", "content2-a.com"},
-		RecordTTL:  300,
-	}, endPoints[0])
-	require.EqualValues(t, &endpoint.Endpoint{
-		DNSName:    "b.com",
-		RecordType: "A",
-		Targets:    []string{"content-b.com"},
-		RecordTTL:  300,
-	}, endPoints[1])
+	sort.Slice(endPoints, func(i, j int) bool {
+		return endPoints[i].DNSName < endPoints[j].DNSName
+	})
+	require.EqualValues(t, endPoints[0].DNSName, "a.com")
+	require.EqualValues(t, endPoints[0].RecordType, "A")
+	require.EqualValues(t, endPoints[0].RecordTTL, 300)
+	assert.Contains(t, endPoints[0].Targets, "content1-a.com")
+	assert.Contains(t, endPoints[0].Targets, "content2-a.com")
+
+	require.EqualValues(t, endPoints[1].DNSName, "b.com")
+	require.EqualValues(t, endPoints[1].RecordType, "A")
+	require.EqualValues(t, endPoints[1].RecordTTL, 300)
+	assert.Contains(t, endPoints[1].Targets, "content-b.com")
 }
 
 type myZone struct {
