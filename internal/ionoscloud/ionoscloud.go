@@ -45,7 +45,7 @@ type DNSService interface {
 // GetAllRecords retrieve all records https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
 func (c *DNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
 	log.Debugf("get all records with offset %d ...", offset)
-	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).Execute()
+	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).FilterState(sdk.AVAILABLE).Execute()
 	if err != nil {
 		log.Errorf("failed to get all records: %v", err)
 		return records, err
@@ -78,7 +78,7 @@ func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name 
 // GetZones client get zones method
 func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
 	log.Debug("get all zones ...")
-	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).Execute()
+	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).FilterState(sdk.AVAILABLE).Execute()
 	if err != nil {
 		log.Errorf("failed to get all zones: %v", err)
 		return zones, err
