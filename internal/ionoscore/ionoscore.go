@@ -63,13 +63,13 @@ func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId str
 }
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration, dryRun bool) *Provider {
+func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 
 	prov := &Provider{
 		client:       DnsClient{client: client},
 		domainFilter: domainFilter,
-		dryRun:       dryRun,
+		dryRun:       configuration.DryRun,
 	}
 
 	return prov
@@ -89,6 +89,9 @@ func createClient(config *ionos.Configuration) *sdk.APIClient {
 		maskAPIKey(),
 		config.Debug,
 	)
+	if config.DryRun {
+		log.Warnf("*** Dry run is enabled, no changes will be made to ionos core DNS ***")
+	}
 
 	sdkConfig := sdk.NewConfiguration()
 	if config.APIEndpointURL != "" {

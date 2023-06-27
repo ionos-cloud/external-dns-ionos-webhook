@@ -23,7 +23,7 @@ const (
 	webtokenIonosISSValue = "ionoscloud"
 )
 
-type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) provider.Provider
+type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
 
 func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configuration) {
 	if ionosConfig.APIEndpointURL == "" {
@@ -34,14 +34,14 @@ func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configura
 	}
 }
 
-var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) provider.Provider {
+var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://api.hosting.ionos.com/dns", "X-API-Key", ionosConfig)
-	return ionoscore.NewProvider(domainFilter, ionosConfig, dryRun)
+	return ionoscore.NewProvider(domainFilter, ionosConfig)
 }
 
-var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration, dryRun bool) provider.Provider {
+var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
-	return ionoscloud.NewProvider(domainFilter, ionosConfig, dryRun)
+	return ionoscloud.NewProvider(domainFilter, ionosConfig)
 }
 
 func Init(config configuration.Config) (provider.Provider, error) {
@@ -72,15 +72,12 @@ func Init(config configuration.Config) (provider.Provider, error) {
 		createMsg += "no kind of domain filters"
 	}
 	log.Info(createMsg)
-	if config.DryRun {
-		log.Warn("***** Dry run enabled, DNS records will not be created or deleted *****")
-	}
 	ionosConfig := ionos.Configuration{}
 	if err := env.Parse(&ionosConfig); err != nil {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
 	createProvider := detectProvider(&ionosConfig)
-	provider := createProvider(domainFilter, &ionosConfig, config.DryRun)
+	provider := createProvider(domainFilter, &ionosConfig)
 	return provider, nil
 }
 

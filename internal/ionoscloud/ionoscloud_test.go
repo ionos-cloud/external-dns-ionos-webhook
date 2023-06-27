@@ -21,11 +21,11 @@ func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
 
-	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{}, true)
+	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{})
 	require.Equal(t, true, p.domainFilter.IsConfigured())
 	require.Equal(t, false, p.domainFilter.Match("b.de."))
 
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{}, false)
+	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
 	require.Equal(t, false, p.domainFilter.IsConfigured())
 	require.Equal(t, true, p.domainFilter.Match("a.de."))
 }

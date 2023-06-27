@@ -23,17 +23,17 @@ type mockDnsService struct {
 
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
-	t.Setenv("IONOS_API_KEY", "1")
 
-	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{}, true)
+	p := NewProvider(endpoint.NewDomainFilter([]string{"a.de."}), &ionos.Configuration{DryRun: true})
 	require.Equal(t, true, p.dryRun)
 	require.Equal(t, true, p.domainFilter.IsConfigured())
-	require.Equal(t, false, p.domainFilter.Match("b.de."))
+	require.NotNilf(t, p.client, "client should not be nil")
 
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{}, false)
+	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
 	require.Equal(t, false, p.dryRun)
 	require.Equal(t, false, p.domainFilter.IsConfigured())
-	require.Equal(t, true, p.domainFilter.Match("a.de."))
+	require.NotNilf(t, p.client, "client should not be nil")
+
 }
 
 func TestRecords(t *testing.T) {

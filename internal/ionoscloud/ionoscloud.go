@@ -140,10 +140,10 @@ type Provider struct {
 }
 
 // NewProvider returns an instance of new provider
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration, dryRun bool) *Provider {
+func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 	prov := &Provider{
-		client:       &DNSClient{client: client, dryRun: dryRun},
+		client:       &DNSClient{client: client, dryRun: configuration.DryRun},
 		domainFilter: domainFilter,
 	}
 	return prov
@@ -166,6 +166,10 @@ func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
 		ionosConfig.Debug,
 	)
 	log.Debugf("JWT: %s", jwtString())
+
+	if ionosConfig.DryRun {
+		log.Warnf("*** Dry run is enabled, no changes will be made to ionos cloud DNS ***")
+	}
 
 	sdkConfig := sdk.NewConfiguration("", "", ionosConfig.APIKey, ionosConfig.APIEndpointURL)
 	sdkConfig.Debug = ionosConfig.Debug
