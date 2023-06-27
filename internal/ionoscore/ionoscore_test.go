@@ -33,7 +33,6 @@ func TestNewProvider(t *testing.T) {
 	require.Equal(t, false, p.dryRun)
 	require.Equal(t, false, p.domainFilter.IsConfigured())
 	require.NotNilf(t, p.client, "client should not be nil")
-
 }
 
 func TestRecords(t *testing.T) {
