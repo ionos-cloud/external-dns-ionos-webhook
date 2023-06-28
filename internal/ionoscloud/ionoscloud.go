@@ -32,6 +32,8 @@ const (
 	zoneReadLimit = 1000
 	// max number of zones to read in total
 	zoneReadMaxCount = 10 * zoneReadLimit
+
+	recordTypeSRV = "SRV"
 )
 
 type DNSClient struct {
@@ -223,8 +225,13 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 		func(recordRead sdk.RecordRead) *endpoint.Endpoint {
 			recordProperties := *recordRead.GetProperties()
 			recordMetadata := *recordRead.GetMetadata()
+			target := *recordProperties.GetContent()
+			priority, hasPriority := recordProperties.GetPriorityOk()
+			if *recordProperties.GetType() == recordTypeSRV && hasPriority {
+				target = fmt.Sprintf("%d %s", *priority, target)
+			}
 			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), *recordProperties.GetType(),
-				endpoint.TTL(*recordProperties.GetTtl()), *recordProperties.GetContent())
+				endpoint.TTL(*recordProperties.GetTtl()), target)
 		}, func(recordRead sdk.RecordRead) string {
 			recordProperties := *recordRead.GetProperties()
 			recordMetadata := *recordRead.GetMetadata()
@@ -288,7 +295,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	}
 
 	recordsToCreate := ionos.NewRecordCollection[*sdk.RecordCreate](epToCreate, func(ep *endpoint.Endpoint) []*sdk.RecordCreate {
-		logger := log.WithField(logFieldRecordFQDN, ep.DNSName)
+		logger := log.WithField(logFieldRecordFQDN, ep.DNSName).WithField(logFieldRecordType, ep.RecordType)
 		zone := zt.FindZoneByDomainName(ep.DNSName)
 		if !zone.HasId() {
 			logger.Warnf("no zone found for domain '%s', skipping record creation", ep.DNSName)
@@ -297,10 +304,25 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		recordName := extractRecordName(ep.DNSName, zone)
 		result := make([]*sdk.RecordCreate, 0)
 		for _, target := range ep.Targets {
-			record := sdk.NewRecord(recordName, ep.RecordType, target)
+			content := target
+			priority := int32(0)
+			splitTarget := strings.Split(target, " ")
+			if ep.RecordType == recordTypeSRV && len(splitTarget) == 2 {
+				content = splitTarget[1]
+				priority64, err := strconv.ParseInt(splitTarget[0], 10, 32)
+				if err != nil {
+					logger.Warnf("failed to parse priority from target '%s'", target)
+				} else {
+					priority = int32(priority64)
+				}
+			}
+			record := sdk.NewRecord(recordName, ep.RecordType, content)
 			ttl := int32(ep.RecordTTL)
 			if ttl != 0 {
 				record.SetTtl(ttl)
+			}
+			if priority != 0 {
+				record.SetPriority(priority)
 			}
 			result = append(result, sdk.NewRecordCreate(*record))
 		}
