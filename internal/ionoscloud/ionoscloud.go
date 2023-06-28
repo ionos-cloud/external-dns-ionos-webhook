@@ -19,6 +19,7 @@ const (
 	logFieldZoneID        = "zoneID"
 	logFieldRecordID      = "recordID"
 	logFieldRecordName    = "recordName"
+	logFieldRecordFQDN    = "recordFQDN"
 	logFieldRecordType    = "recordType"
 	logFieldRecordContent = "recordContent"
 	logFieldRecordTTL     = "recordTTL"
@@ -200,8 +201,8 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 	if p.domainFilter.IsConfigured() {
 		filteredResult := make([]sdk.RecordRead, 0)
 		for _, record := range result {
-			recordName := *record.GetProperties().GetName()
-			if p.domainFilter.Match(recordName) {
+			fqdn := *record.GetMetadata().GetFqdn()
+			if p.domainFilter.Match(fqdn) {
 				filteredResult = append(filteredResult, record)
 			}
 		}
@@ -220,11 +221,14 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	}
 	epCollection := ionos.NewEndpointCollection[sdk.RecordRead](allRecords,
 		func(recordRead sdk.RecordRead) *endpoint.Endpoint {
-			record := *recordRead.GetProperties()
-			return endpoint.NewEndpointWithTTL(*record.GetName(), *record.GetType(), endpoint.TTL(*record.GetTtl()), *record.GetContent())
+			recordProperties := *recordRead.GetProperties()
+			recordMetadata := *recordRead.GetMetadata()
+			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), *recordProperties.GetType(),
+				endpoint.TTL(*recordProperties.GetTtl()), *recordProperties.GetContent())
 		}, func(recordRead sdk.RecordRead) string {
-			record := *recordRead.GetProperties()
-			return *record.GetName() + "/" + *record.GetType() + "/" + strconv.Itoa(int(*record.GetTtl()))
+			recordProperties := *recordRead.GetProperties()
+			recordMetadata := *recordRead.GetMetadata()
+			return *recordMetadata.GetFqdn() + "/" + *recordProperties.GetType() + "/" + strconv.Itoa(int(*recordProperties.GetTtl()))
 		})
 	return epCollection.RetrieveEndPoints(), nil
 }
@@ -236,7 +240,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		return err
 	}
 	recordsToDelete := ionos.NewRecordCollection[sdk.RecordRead](epToDelete, func(ep *endpoint.Endpoint) []sdk.RecordRead {
-		logger := log.WithField(logFieldRecordName, ep.DNSName)
+		logger := log.WithField(logFieldRecordFQDN, ep.DNSName)
 		records := make([]sdk.RecordRead, 0)
 		zone := zt.FindZoneByDomainName(ep.DNSName)
 		if zone.Id == nil {
@@ -244,7 +248,8 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 			return records
 		}
 		logger = logger.WithField(logFieldZoneID, *zone.GetId())
-		zoneRecordReadList, err := p.client.GetRecordsByZoneIdAndName(ctx, *zone.GetId(), ep.DNSName)
+		recordName := extractRecordName(ep.DNSName, zone)
+		zoneRecordReadList, err := p.client.GetRecordsByZoneIdAndName(ctx, *zone.GetId(), recordName)
 		if err != nil {
 			logger.Errorf("failed to get records for zone, error: %v", err)
 			return records
@@ -270,8 +275,8 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		return result
 	})
 
-	if err := recordsToDelete.ForEach(func(recordRead sdk.RecordRead) error {
-		domainName := *recordRead.GetProperties().GetName()
+	if err := recordsToDelete.ForEach(func(ep *endpoint.Endpoint, recordRead sdk.RecordRead) error {
+		domainName := *recordRead.GetMetadata().GetFqdn()
 		zone := zt.FindZoneByDomainName(domainName)
 		if !zone.HasId() {
 			return fmt.Errorf("no zone found for domain '%s'", domainName)
@@ -283,15 +288,16 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	}
 
 	recordsToCreate := ionos.NewRecordCollection[*sdk.RecordCreate](epToCreate, func(ep *endpoint.Endpoint) []*sdk.RecordCreate {
-		logger := log.WithField(logFieldRecordName, ep.DNSName)
+		logger := log.WithField(logFieldRecordFQDN, ep.DNSName)
 		zone := zt.FindZoneByDomainName(ep.DNSName)
 		if !zone.HasId() {
 			logger.Warnf("no zone found for domain '%s', skipping record creation", ep.DNSName)
 			return nil
 		}
+		recordName := extractRecordName(ep.DNSName, zone)
 		result := make([]*sdk.RecordCreate, 0)
 		for _, target := range ep.Targets {
-			record := sdk.NewRecord(ep.DNSName, ep.RecordType, target)
+			record := sdk.NewRecord(recordName, ep.RecordType, target)
 			ttl := int32(ep.RecordTTL)
 			if ttl != 0 {
 				record.SetTtl(ttl)
@@ -300,11 +306,10 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		}
 		return result
 	})
-	if err := recordsToCreate.ForEach(func(recordCreate *sdk.RecordCreate) error {
-		domainName := *recordCreate.GetProperties().GetName()
-		zone := zt.FindZoneByDomainName(domainName)
+	if err := recordsToCreate.ForEach(func(ep *endpoint.Endpoint, recordCreate *sdk.RecordCreate) error {
+		zone := zt.FindZoneByDomainName(ep.DNSName)
 		if !zone.HasId() {
-			return fmt.Errorf("no zone found for domain '%s'", domainName)
+			return fmt.Errorf("no zone found for domain '%s'", ep.DNSName)
 		}
 		err := p.client.CreateRecord(ctx, *zone.GetId(), *recordCreate)
 		return err
@@ -341,4 +346,13 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 		}
 	}
 	return zt, nil
+}
+
+func extractRecordName(fqdn string, zone sdk.ZoneRead) string {
+	zoneName := *zone.GetProperties().GetZoneName()
+	partOfZoneName := strings.Index(fqdn, zoneName)
+	if partOfZoneName == 0 {
+		return ""
+	}
+	return fqdn[:partOfZoneName-1]
 }

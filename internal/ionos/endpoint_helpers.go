@@ -58,22 +58,24 @@ func (epc *EndpointCollection) RetrieveEndPoints() []*endpoint.Endpoint {
 }
 
 type RecordCollection[R any] struct {
-	records []R
+	records map[*endpoint.Endpoint][]R
 }
 
 func NewRecordCollection[R any](endpoints []*endpoint.Endpoint, creator func(*endpoint.Endpoint) []R) *RecordCollection[R] {
-	rc := &RecordCollection[R]{records: make([]R, 0)}
+	rc := &RecordCollection[R]{records: make(map[*endpoint.Endpoint][]R, 0)}
 	for _, ep := range endpoints {
 		records := creator(ep)
-		rc.records = append(rc.records, records...)
+		rc.records[ep] = records
 	}
 	return rc
 }
 
-func (c *RecordCollection[R]) ForEach(visit func(R) error) error {
-	for _, record := range c.records {
-		if err := visit(record); err != nil {
-			return err
+func (c *RecordCollection[R]) ForEach(visit func(*endpoint.Endpoint, R) error) error {
+	for ep, records := range c.records {
+		for _, record := range records {
+			if err := visit(ep, record); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
