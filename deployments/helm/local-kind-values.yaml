@@ -1,13 +1,17 @@
 image:
-  registry: localhost:5001
-  repository: external-dns-webhook-provider
+  registry: ghcr.io
+  repository: ionos-cloud/external-dns-webhook-provider
   tag: latest
   pullPolicy: Always
 
 provider: webhook
 
-sources: 
-  - service
+domainFilters:
+  - alexkrieg.com
+  - alexkrieg.de
+
+#sources:
+#  - service
 
 logLevel: debug
 
@@ -38,10 +42,10 @@ sidecars:
         value: debug
       - name: LOG_FORMAT
         value: txt
-#      - name: DRY_RUN
-#        value: "true"
-#      - name: DOMAIN_FILTER
-#        value: "alexkrieg.com,alexkrieg.de"
+      - name: DRY_RUN
+        value: "true"
+      - name: DOMAIN_FILTER
+        value: "alexkrieg.com,alexkrieg.de"
 #      - name: EXCLUDE_DOMAIN_FILTER
 #        value: "test.com,test.de"
 #      - name: REGEXP_DOMAIN_FILTER
@@ -49,10 +53,10 @@ sidecars:
 #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
 #        value: ""
       - name: SERVER_HOST
-        value: ""
+        value: "0.0.0.0"
       - name: IONOS_API_KEY
-        value: "test-api-key"
+        value: "eyJ0eXAiOiJKV1QiLCJraWQiOiJjZjdmYTRmYy1jYTVmLTQ0NDQtOTlkZS02ZmQ1YWUyMjcyMmMiLCJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJpb25vc2Nsb3VkIiwiaWF0IjoxNjg3MjUxMjcwLCJjbGllbnQiOiJVU0VSIiwiaWRlbnRpdHkiOnsicmVnRG9tYWluIjoiaW9ub3MuY29tIiwicmVzZWxsZXJJZCI6MSwidXVpZCI6IjU5NzRjOWQxLTg1ZTUtNDBlOS1iZWVjLTAwYTQyMzY3MjkyNiIsInByaXZpbGVnZXMiOlsiREFUQV9DRU5URVJfQ1JFQVRFIiwiU05BUFNIT1RfQ1JFQVRFIiwiSVBfQkxPQ0tfUkVTRVJWRSIsIkFDQ0VTU19BQ1RJVklUWV9MT0ciLCJQQ0NfQ1JFQVRFIiwiQUNDRVNTX1MzX09CSkVDVF9TVE9SQUdFIiwiQkFDS1VQX1VOSVRfQ1JFQVRFIiwiQ1JFQVRFX0lOVEVSTkVUX0FDQ0VTUyIsIks4U19DTFVTVEVSX0NSRUFURSIsIkZMT1dfTE9HX0NSRUFURSIsIkFDQ0VTU19BTkRfTUFOQUdFX01PTklUT1JJTkciLCJBQ0NFU1NfQU5EX01BTkFHRV9DRVJUSUZJQ0FURVMiLCJNQU5BR0VfREJBQVMiLCJBQ0NFU1NfQU5EX01BTkFHRV9ETlMiLCJNQU5BR0VfUkVHSVNUUlkiLCJNQU5BR0VfREFUQVBMQVRGT1JNIl0sImlzUGFyZW50IjpmYWxzZSwiY29udHJhY3ROdW1iZXIiOjIwNTcwMDM5Niwicm9sZSI6Im93bmVyIn0sImV4cCI6MTcxODgwODg3MH0.dmHEAEhJ7Gu89a1ZTFujTAjRxVF4H3ozIVYTYR-pidC-PX6Oh2wWfXEw6XXwJwKct1tF-WxPKe8lysErkYkrJ-L4dANBwB2vWI6P7CgFAiV5XgRQAfhu7CFjRkzAEQATh2yn6rHD7JbHsEq6hL4I7Hpt7JVJ1cbyRdotGZUG-Klg6UypUhVbo0r9nuYHljdCc2mJuCFmYMUTCAl7KbysaULyii92lVOb_wVrf2xwQr-RiCzimfEXc1xglp1r72aWknzoieNZy1BFkURPZPAI21Hq1V7QwUH3FAU5L2T6jdvPRIA5qZq1vLMFqU1N9WoTGJWNM5qQ6DWDJmRIK89gkw"
       - name: IONOS_API_URL
-        value: "http://dns-mockserver.dns-mockserver.svc.cluster.local"
-      - name: IONOS_DEBUG
-        value: "true"
+        value: "https://qa.dns.de-txl.ionos.com"
+#      - name: IONOS_DEBUG
+#        value: "true"
