@@ -14,10 +14,11 @@ extraArgs:
   webhook-provider-url: http://localhost:8888
 
 logLevel: debug
+logFormat: json
 
 sidecars:
   - name: ionos-webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:v0.3.0
+    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:ionoscloud
     ports:
       - containerPort: 8888
         name: http
@@ -36,6 +37,8 @@ sidecars:
     env:
       - name: LOG_LEVEL
         value: debug
+      - name: LOG_FORMAT
+        value: json
       - name: IONOS_API_KEY
         valueFrom:
           secretKeyRef:

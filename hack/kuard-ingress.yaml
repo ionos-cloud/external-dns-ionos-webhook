@@ -1,0 +1,18 @@
+# ingress for service kuard
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kuard
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: kuard.demo-ionos.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kuard
+                port:
+                  number: 8080

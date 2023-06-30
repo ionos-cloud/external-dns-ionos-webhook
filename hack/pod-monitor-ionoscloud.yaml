@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: external-dns-ionoscloud
+  labels:
+    ionos.cloud/metrics: "true"
+spec:
+  podMetricsEndpoints:
+    - port: http
+      relabelings:
+        - targetLabel: job
+          replacement: external-dns-ionoscloud
+        - targetLabel: instance
+          sourceLabels: [pod]
+        - action: labelkeep
+          regex: (job|instance|__.*)
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: external-dns-ionoscloud
+  namespaceSelector:
+    any: false
+    matchNames:
+      - external-dns-ionoscloud
