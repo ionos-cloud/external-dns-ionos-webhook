@@ -212,6 +212,21 @@ func (p *Webhook) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (p *Webhook) Negotiate(w http.ResponseWriter, r *http.Request) {
+	if err := p.acceptHeaderCheck(w, r); err != nil {
+		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
+		return
+	}
+	b, err := p.provider.GetDomainFilter().MarshalJSON()
+	if err != nil {
+		log.Errorf("failed to marshal domain filter, request method: %s, request path: %s", r.Method, r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
+	w.Write(b)
+}
+
 func requestLog(r *http.Request) *log.Entry {
 	return log.WithFields(log.Fields{logFieldRequestMethod: r.Method, logFieldRequestPath: r.URL.Path})
 }

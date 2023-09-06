@@ -23,6 +23,7 @@ type testCase struct {
 	name                      string
 	returnRecords             []*endpoint.Endpoint
 	returnAdjustedEndpoints   []*endpoint.Endpoint
+	returnDomainFilter        endpoint.DomainFilter
 	hasError                  error
 	method                    string
 	path                      string
@@ -33,6 +34,7 @@ type testCase struct {
 	expectedBody              string
 	expectedChanges           *plan.Changes
 	expectedEndpointsToAdjust []*endpoint.Endpoint
+	log.Ext1FieldLogger
 }
 
 var mockProvider *MockProvider
@@ -421,4 +423,8 @@ func (d *MockProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoi
 		d.t.Errorf("expected endpoints to adjust '%v', got '%v'", d.testCase.expectedEndpointsToAdjust, endpoints)
 	}
 	return d.testCase.returnAdjustedEndpoints
+}
+
+func (d *MockProvider) GetDomainFilter() endpoint.DomainFilter {
+	return d.testCase.returnDomainFilter
 }

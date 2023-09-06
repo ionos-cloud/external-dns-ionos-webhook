@@ -28,6 +28,7 @@ type Provider interface {
 	Records(ctx context.Context) ([]*endpoint.Endpoint, error)
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
 	AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint
+	GetDomainFilter() endpoint.DomainFilter
 }
 
 // BaseProvider implements methods of provider interface that are commonly "ignored" by dns providers
@@ -37,4 +38,9 @@ type BaseProvider struct{}
 // AdjustEndpoints basic implementation of provider interface method
 func (b BaseProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
 	return endpoints
+}
+
+// GetDomainFilter basic implementation of provider interface method
+func (b BaseProvider) GetDomainFilter() endpoint.DomainFilter {
+	return endpoint.DomainFilter{}
 }

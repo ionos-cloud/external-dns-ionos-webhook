@@ -20,9 +20,15 @@ import (
 )
 
 // Init server initialization function
+// The server will respond to the following endpoints:
+// - / (GET): initialization, negotiates headers and returns the domain filter
+// - /records (GET): returns the current records
+// - /records (POST): applies the changes
+// - /adjustendpoints (POST): executes the AdjustEndpoints method
 func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	r := chi.NewRouter()
 	r.Use(webhook.Health)
+	r.Get("/", p.Negotiate)
 	r.Get("/records", p.Records)
 	r.Post("/records", p.ApplyChanges)
 	r.Post("/adjustendpoints", p.AdjustEndpoints)
