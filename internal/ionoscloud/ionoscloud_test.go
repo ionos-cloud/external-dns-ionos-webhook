@@ -502,14 +502,6 @@ func TestApplyChanges(t *testing.T) {
 		})
 	}
 }
-
-func TestPropertyValuesEqual(t *testing.T) {
-	provider := &Provider{}
-	name := RandStringRunes(10)
-	require.True(t, provider.PropertyValuesEqual(name, "a", "a"))
-	require.False(t, provider.PropertyValuesEqual(name, "a", "b"))
-}
-
 func TestAdjustEndpoints(t *testing.T) {
 	provider := &Provider{}
 	endpoints := createEndpointSlice(rand.Intn(5), func(i int) (string, string, endpoint.TTL, []string) {

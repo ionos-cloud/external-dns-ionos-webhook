@@ -20,22 +20,19 @@ import (
 )
 
 type testCase struct {
-	name                                string
-	returnRecords                       []*endpoint.Endpoint
-	returnAdjustedEndpoints             []*endpoint.Endpoint
-	hasError                            error
-	method                              string
-	path                                string
-	headers                             map[string]string
-	body                                string
-	expectedStatusCode                  int
-	expectedResponseHeaders             map[string]string
-	expectedBody                        string
-	expectedChanges                     *plan.Changes
-	expectedEndpointsToAdjust           []*endpoint.Endpoint
-	expectedPropertyValuesEqualName     string
-	expectedPropertyValuesEqualPrevious string
-	expectedPropertyValuesEqualCurrent  string
+	name                      string
+	returnRecords             []*endpoint.Endpoint
+	returnAdjustedEndpoints   []*endpoint.Endpoint
+	hasError                  error
+	method                    string
+	path                      string
+	headers                   map[string]string
+	body                      string
+	expectedStatusCode        int
+	expectedResponseHeaders   map[string]string
+	expectedBody              string
+	expectedChanges           *plan.Changes
+	expectedEndpointsToAdjust []*endpoint.Endpoint
 }
 
 var mockProvider *MockProvider
@@ -354,108 +351,6 @@ func TestAdjustEndpoints(t *testing.T) {
 	executeTestCases(t, testCases)
 }
 
-func TestPropertyValuesEqual(t *testing.T) {
-	testCases := []testCase{
-		{
-			name:   "happy case",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "application/external.dns.webhook+json;version=1",
-			},
-			path: "/propertyvaluesequals",
-			body: `
-{
-	"name": "propertyname",
-	"previous": "previousvalue",
-	"current": "currentvalue"
-}`,
-			expectedStatusCode: http.StatusOK,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-			},
-			expectedBody:                        "{\"equals\":false}",
-			expectedPropertyValuesEqualName:     "propertyname",
-			expectedPropertyValuesEqualCurrent:  "currentvalue",
-			expectedPropertyValuesEqualPrevious: "previousvalue",
-		},
-		{
-			name:   "no content type header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Accept": "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/propertyvaluesequals",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a content type",
-		},
-		{
-			name:   "wrong content type header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "invalid",
-				"Accept":       "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/propertyvaluesequals",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		},
-		{
-			name:   "no accept header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/propertyvaluesequals",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide an accept header",
-		},
-		{
-			name:   "wrong accept header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "invalid",
-			},
-			path:               "/propertyvaluesequals",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		},
-		{
-			name:   "invalid json",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/propertyvaluesequals",
-			body:               "invalid",
-			expectedStatusCode: http.StatusBadRequest,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "failed to decode request body: invalid character 'i' looking for beginning of value",
-		},
-	}
-	executeTestCases(t, testCases)
-}
-
 func executeTestCases(t *testing.T, testCases []testCase) {
 	log.SetLevel(log.DebugLevel)
 	for i, tc := range testCases {
@@ -526,17 +421,4 @@ func (d *MockProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoi
 		d.t.Errorf("expected endpoints to adjust '%v', got '%v'", d.testCase.expectedEndpointsToAdjust, endpoints)
 	}
 	return d.testCase.returnAdjustedEndpoints
-}
-
-func (d *MockProvider) PropertyValuesEqual(name string, previous string, current string) bool {
-	if name != d.testCase.expectedPropertyValuesEqualName {
-		d.t.Errorf("expected name '%s', got '%s'", d.testCase.expectedPropertyValuesEqualName, name)
-	}
-	if previous != d.testCase.expectedPropertyValuesEqualPrevious {
-		d.t.Errorf("expected previous '%s', got '%s'", d.testCase.expectedPropertyValuesEqualPrevious, previous)
-	}
-	if current != d.testCase.expectedPropertyValuesEqualCurrent {
-		d.t.Errorf("expected current '%s', got '%s'", d.testCase.expectedPropertyValuesEqualCurrent, current)
-	}
-	return previous == current
 }

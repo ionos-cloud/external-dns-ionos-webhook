@@ -25,7 +25,6 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	r.Use(webhook.Health)
 	r.Get("/records", p.Records)
 	r.Post("/records", p.ApplyChanges)
-	r.Post("/propertyvaluesequals", p.PropertyValuesEquals)
 	r.Post("/adjustendpoints", p.AdjustEndpoints)
 
 	srv := createHTTPServer(fmt.Sprintf("%s:%d", config.ServerHost, config.ServerPort), r)
