@@ -224,7 +224,11 @@ func (p *Webhook) Negotiate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
-	w.Write(b)
+	if _, writeError := w.Write(b); writeError != nil {
+		requestLog(r).WithField(logFieldError, writeError).Error("error writing response")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 func requestLog(r *http.Request) *log.Entry {

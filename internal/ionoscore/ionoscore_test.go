@@ -3,9 +3,10 @@ package ionoscore
 import (
 	"context"
 	"fmt"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	"sort"
 	"testing"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 

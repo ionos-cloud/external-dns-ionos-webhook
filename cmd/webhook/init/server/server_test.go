@@ -354,7 +354,6 @@ func TestAdjustEndpoints(t *testing.T) {
 }
 
 func TestNegotiate(t *testing.T) {
-
 	testCases := []testCase{
 		{
 			name:               "happy case",

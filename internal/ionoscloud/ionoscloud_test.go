@@ -3,9 +3,10 @@ package ionoscloud
 import (
 	"context"
 	"fmt"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	"math/rand"
 	"testing"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
@@ -504,6 +505,7 @@ func TestApplyChanges(t *testing.T) {
 		})
 	}
 }
+
 func TestAdjustEndpoints(t *testing.T) {
 	provider := &Provider{}
 	endpoints := createEndpointSlice(rand.Intn(5), func(i int) (string, string, endpoint.TTL, []string) {
