@@ -18,7 +18,6 @@ package provider
 
 import (
 	"context"
-
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
 )
@@ -33,14 +32,21 @@ type Provider interface {
 
 // BaseProvider implements methods of provider interface that are commonly "ignored" by dns providers
 // Basic implementation of the methods is done to avoid code repetition
-type BaseProvider struct{}
+type BaseProvider struct {
+	domainFilter endpoint.DomainFilter
+}
+
+// NewBaseProvider returns an instance of new BaseProvider
+func NewBaseProvider(domainFilter endpoint.DomainFilter) *BaseProvider {
+	return &BaseProvider{domainFilter}
+}
+
+// GetDomainFilter basic implementation using the common domainFilter attribute
+func (b BaseProvider) GetDomainFilter() endpoint.DomainFilter {
+	return b.domainFilter
+}
 
 // AdjustEndpoints basic implementation of provider interface method
 func (b BaseProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
 	return endpoints
-}
-
-// GetDomainFilter basic implementation of provider interface method
-func (b BaseProvider) GetDomainFilter() endpoint.DomainFilter {
-	return endpoint.DomainFilter{}
 }
