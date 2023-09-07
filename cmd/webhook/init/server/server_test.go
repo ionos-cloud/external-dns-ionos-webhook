@@ -353,6 +353,50 @@ func TestAdjustEndpoints(t *testing.T) {
 	executeTestCases(t, testCases)
 }
 
+func TestNegotiate(t *testing.T) {
+
+	testCases := []testCase{
+		{
+			name:               "happy case",
+			returnDomainFilter: endpoint.NewDomainFilter([]string{"a.de"}),
+			method:             http.MethodGet,
+			headers:            map[string]string{"Accept": "application/external.dns.webhook+json;version=1"},
+			path:               "/",
+			body:               "",
+			expectedStatusCode: http.StatusOK,
+			expectedResponseHeaders: map[string]string{
+				"Content-Type": "application/external.dns.webhook+json;version=1",
+			},
+			expectedBody: `{"include":["a.de"]}`,
+		},
+		{
+			name:               "no accept header",
+			method:             http.MethodGet,
+			headers:            map[string]string{},
+			path:               "/",
+			body:               "",
+			expectedStatusCode: http.StatusNotAcceptable,
+			expectedResponseHeaders: map[string]string{
+				"Content-Type": "text/plain",
+			},
+			expectedBody: "client must provide an accept header",
+		},
+		{
+			name:               "wrong accept header",
+			method:             http.MethodGet,
+			headers:            map[string]string{"Accept": "invalid"},
+			path:               "/",
+			body:               "",
+			expectedStatusCode: http.StatusUnsupportedMediaType,
+			expectedResponseHeaders: map[string]string{
+				"Content-Type": "text/plain",
+			},
+			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
+		},
+	}
+	executeTestCases(t, testCases)
+}
+
 func executeTestCases(t *testing.T, testCases []testCase) {
 	log.SetLevel(log.DebugLevel)
 	for i, tc := range testCases {
