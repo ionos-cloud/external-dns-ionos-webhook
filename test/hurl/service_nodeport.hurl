@@ -97,7 +97,7 @@ Content-Type: application/json
 
 HTTP/1.1 200
 [Captures]
-node_ip: jsonpath "$.items[0].status.addresses[?(@.type=='InternalIP')].address"
+node_ip: jsonpath "$.items[0].status.addresses[?(@.type=='InternalIP')].address" nth 0
 
 
 # create A record 
@@ -278,9 +278,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: true
-retry: true
 retry-interval: 6000
-retry-max-count: 10
+retry: 10
 
 {
     "expectationId": {
@@ -298,9 +297,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: true
-retry: true
+retry: 3
 retry-interval: 1000
-retry-max-count: 3
 
 {
     "expectationId": {
@@ -318,9 +316,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: true
+retry: 3
 retry-interval: 1000
-retry-max-count: 3
 
 {
     "expectationId": {
@@ -339,9 +336,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: true
+retry: 3
 retry-interval: 1000
-retry-max-count: 3
 
 {
     "expectationId": {
@@ -360,9 +356,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: true
+retry: 3
 retry-interval: 1000
-retry-max-count: 3
 
 {
     "expectationId": {
