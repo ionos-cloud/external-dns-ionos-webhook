@@ -1,7 +1,7 @@
 image:
-  registry: localhost:5001
-  repository: external-dns-webhook-provider
-  tag: latest
+  registry: registry.k8s.io
+  repository: external-dns/external-dns
+  tag: v0.14.0
   pullPolicy: Always
 
 provider: webhook
