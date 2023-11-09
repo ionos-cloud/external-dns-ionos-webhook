@@ -1,17 +1,12 @@
 # ExternalDNS - IONOS Webhook
 
-**⚠️ NOTE**: This Webhook is based on a not yet released version of
-[ExternalDNS](https://github.com/kubernetes-sigs/external-dns) -
-especially the new integration approach by using webhooks, discussed and implemented in
-[PR-3063](https://github.com/kubernetes-sigs/external-dns/pull/3063).
-
 ExternalDNS is a Kubernetes add-on for automatically managing
 Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
 By default, Kubernetes manages DNS records internally,
 but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
 provider such as IONOS.
 Therefore, the IONOS webhook allows to manage your
-IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
+IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns). 
 
 To use ExternalDNS with IONOS, you need your IONOS API key or token of the account managing
 your domains.
@@ -35,9 +30,12 @@ kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE
 # create the helm values file
 cat <<EOF > external-dns-ionos-values.yaml
 image:
-  registry: ghcr.io
-  repository: ionos-cloud/external-dns-webhook-provider
-  tag: latest
+  registry: registry.k8s.io
+  repository: external-dns/external-dns
+  tag: v0.14.0
+
+# restrict to namespace
+# namespace: external-dns 
 
 provider: webhook
 
@@ -46,7 +44,7 @@ extraArgs:
 
 sidecars:
   - name: ionos-webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
+    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:v0.6.0
     ports:
       - containerPort: 8888
         name: http
