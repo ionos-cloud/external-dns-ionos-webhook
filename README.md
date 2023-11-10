@@ -11,7 +11,7 @@ IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.c
 To use ExternalDNS with IONOS, you need your IONOS API key or token of the account managing
 your domains.
 For detailed technical instructions on how the IONOS webhook is deployed using the Bitnami Helm charts for ExternalDNS,
-see[deployment instructions](#kubernetes-deployment).
+see [deployment instructions](#kubernetes-deployment).
 
 ## Kubernetes Deployment
 
