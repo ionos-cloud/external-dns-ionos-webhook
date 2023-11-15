@@ -24,7 +24,7 @@ jobs:
           go-version: stable
 
       - name: Set Up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v3.1.1
