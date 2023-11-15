@@ -12,7 +12,7 @@ require (
 	github.com/ionos-developer/dns-sdk-go v0.0.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
-	gotest.tools/gotestsum v1.10.0
+	gotest.tools/gotestsum v1.10.1
 )
 
 require (
