@@ -19,10 +19,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	webtokenIonosISSValue = "ionoscloud"
-)
-
 type IONOSProviderFactory func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) provider.Provider
 
 func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configuration) {
@@ -94,9 +90,7 @@ func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
 		if err != nil {
 			return IonosCoreProviderFactory
 		}
-		if tokenMap["iss"] == webtokenIonosISSValue {
-			return IonosCloudProviderFactory
-		}
+		return IonosCloudProviderFactory
 	}
 	return IonosCoreProviderFactory
 }

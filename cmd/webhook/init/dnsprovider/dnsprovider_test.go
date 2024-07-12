@@ -1,6 +1,7 @@
 package dnsprovider
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
@@ -13,6 +14,7 @@ import (
 
 func TestInit(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+	jwtPayloadEncoded := base64.RawURLEncoding.EncodeToString([]byte(`{ "something" : "we dont care" }`))
 
 	cases := []struct {
 		name          string
@@ -28,10 +30,22 @@ func TestInit(t *testing.T) {
 			providerType: "core",
 		},
 		{
-			name:   "minimal config for ionos cloud provider ( token is jwt with payload iss=ionoscloud )",
+			name:         "config for ionos core provider, apikey with 2 dots but no jwt because no json",
+			config:       configuration.Config{},
+			env:          map[string]string{"IONOS_API_KEY": "algorithm.nojson.signature"},
+			providerType: "core",
+		},
+		{
+			name:         "config for ionos core provider, apikey with 2 dots but no jwt because payload not base64 encoded",
+			config:       configuration.Config{},
+			env:          map[string]string{"IONOS_API_KEY": "algorithm.==.signature"},
+			providerType: "core",
+		},
+		{
+			name:   "minimal config for ionos cloud provider, token can be decoded as jwt ",
 			config: configuration.Config{},
 			env: map[string]string{
-				"IONOS_API_KEY": "algorithm.eyAiaXNzIiA6ICJpb25vc2Nsb3VkIiB9.signature",
+				"IONOS_API_KEY": "algorithm." + jwtPayloadEncoded + ".signature",
 			},
 			providerType: "cloud",
 		},
