@@ -101,7 +101,7 @@ The basic development tasks are provided by make. Run `make help` to see the ava
 The webhook can be deployed locally with a kind cluster. As a prerequisite, you need to install:
 
 - [Docker](https://docs.docker.com/get-docker/),
-- [Helm](https://https://helm.sh/ ) with the repos:
+- [Helm](https://helm.sh/) with the repos:
 
  ```shell
   helm repo add bitnami https://charts.bitnami.com/bitnami
