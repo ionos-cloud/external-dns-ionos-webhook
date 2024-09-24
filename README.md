@@ -44,7 +44,7 @@ extraArgs:
 
 sidecars:
   - name: ionos-webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:v0.6.0
+    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:v0.7.0
     ports:
       - containerPort: 8888
         name: http
