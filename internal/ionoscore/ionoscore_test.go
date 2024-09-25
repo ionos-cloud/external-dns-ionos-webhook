@@ -29,12 +29,13 @@ func TestNewProvider(t *testing.T) {
 	baseProvider := provider.NewBaseProvider(endpoint.NewDomainFilter([]string{"a.de."}))
 	p := NewProvider(baseProvider, &ionos.Configuration{DryRun: true})
 	require.Equal(t, true, p.dryRun)
-	require.Equal(t, true, p.BaseProvider.GetDomainFilter().IsConfigured())
+	require.True(t, p.BaseProvider.GetDomainFilter().Match("a.de"))
+	require.False(t, p.BaseProvider.GetDomainFilter().Match("ab.de"))
 	require.NotNilf(t, p.client, "client should not be nil")
 	baseProvider = provider.NewBaseProvider(endpoint.DomainFilter{})
 	p = NewProvider(baseProvider, &ionos.Configuration{})
 	require.Equal(t, false, p.dryRun)
-	require.Equal(t, false, p.BaseProvider.GetDomainFilter().IsConfigured())
+	require.True(t, p.BaseProvider.GetDomainFilter().Match("everything"))
 	require.NotNilf(t, p.client, "client should not be nil")
 }
 

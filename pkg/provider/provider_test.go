@@ -37,7 +37,8 @@ func TestBaseProvider_AdjustEndpoints(t *testing.T) {
 	endpoints := []*endpoint.Endpoint{endpoint1, endpoint2, endpoint3}
 
 	// Call the AdjustEndpoints method to get adjusted endpoints.
-	adjustedEndpoints := baseProvider.AdjustEndpoints(endpoints)
+	adjustedEndpoints, err := baseProvider.AdjustEndpoints(endpoints)
+	require.NoError(t, err)
 
 	// Assert that the adjustedEndpoints are the same as the input endpoints.
 	require.Equal(t, endpoints, adjustedEndpoints)

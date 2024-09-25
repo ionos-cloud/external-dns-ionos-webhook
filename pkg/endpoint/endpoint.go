@@ -28,6 +28,8 @@ import (
 const (
 	// RecordTypeA is a RecordType enum value
 	RecordTypeA = "A"
+	// RecordTypeAAAA is a RecordType enum value
+	RecordTypeAAAA = "AAAA"
 	// RecordTypeCNAME is a RecordType enum value
 	RecordTypeCNAME = "CNAME"
 	// RecordTypeTXT is a RecordType enum value
@@ -38,6 +40,10 @@ const (
 	RecordTypeNS = "NS"
 	// RecordTypePTR is a RecordType enum value
 	RecordTypePTR = "PTR"
+	// RecordTypeMX is a RecordType enum value
+	RecordTypeMX = "MX"
+	// RecordTypeNAPTR is a RecordType enum value
+	RecordTypeNAPTR = "NAPTR"
 )
 
 // TTL is a structure defining the TTL of a DNS record
@@ -67,7 +73,17 @@ func (t Targets) Len() int {
 }
 
 func (t Targets) Less(i, j int) bool {
-	return t[i] < t[j]
+	ipi, err := netip.ParseAddr(t[i])
+	if err != nil {
+		return t[i] < t[j]
+	}
+
+	ipj, err := netip.ParseAddr(t[j])
+	if err != nil {
+		return t[i] < t[j]
+	}
+
+	return ipi.String() < ipj.String()
 }
 
 func (t Targets) Swap(i, j int) {
@@ -84,6 +100,27 @@ func (t Targets) Same(o Targets) bool {
 
 	for i, e := range t {
 		if !strings.EqualFold(e, o[i]) {
+			// IPv6 can be shortened, so it should be parsed for equality checking
+			ipA, err := netip.ParseAddr(e)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"targets":           t,
+					"comparisonTargets": o,
+				}).Debugf("Couldn't parse %s as an IP address: %v", e, err)
+			}
+
+			ipB, err := netip.ParseAddr(o[i])
+			if err != nil {
+				log.WithFields(log.Fields{
+					"targets":           t,
+					"comparisonTargets": o,
+				}).Debugf("Couldn't parse %s as an IP address: %v", e, err)
+			}
+
+			// IPv6 Address Shortener == IPv6 Address Expander
+			if ipA.IsValid() && ipB.IsValid() {
+				return ipA.String() == ipB.String()
+			}
 			return false
 		}
 	}
@@ -156,13 +193,20 @@ type ProviderSpecificProperty struct {
 // ProviderSpecific holds configuration which is specific to individual DNS providers
 type ProviderSpecific []ProviderSpecificProperty
 
+// EndpointKey is the type of a map key for separating endpoints or targets.
+type EndpointKey struct {
+	DNSName       string
+	RecordType    string
+	SetIdentifier string
+}
+
 // Endpoint is a high-level way of a connection between a service and an IP
 type Endpoint struct {
 	// The hostname of the DNS record
 	DNSName string `json:"dnsName,omitempty"`
 	// The targets the DNS record points to
 	Targets Targets `json:"targets,omitempty"`
-	// RecordType type of record, e.g. CNAME, A, SRV, TXT etc
+	// RecordType type of record, e.g. CNAME, A, AAAA, SRV, TXT etc
 	RecordType string `json:"recordType,omitempty"`
 	// Identifier to distinguish multiple records with the same name and type (e.g. Route53 records with routing policies other than 'simple')
 	SetIdentifier string `json:"setIdentifier,omitempty"`
@@ -216,24 +260,75 @@ func (e *Endpoint) WithSetIdentifier(setIdentifier string) *Endpoint {
 // warrant its own field on the Endpoint object itself. It differs from Labels in the fact that it's
 // not persisted in the Registry but only kept in memory during a single record synchronization.
 func (e *Endpoint) WithProviderSpecific(key, value string) *Endpoint {
-	if e.ProviderSpecific == nil {
-		e.ProviderSpecific = ProviderSpecific{}
-	}
-
-	e.ProviderSpecific = append(e.ProviderSpecific, ProviderSpecificProperty{Name: key, Value: value})
+	e.SetProviderSpecificProperty(key, value)
 	return e
 }
 
-// GetProviderSpecificProperty returns a ProviderSpecificProperty if the property exists.
-func (e *Endpoint) GetProviderSpecificProperty(key string) (ProviderSpecificProperty, bool) {
+// GetProviderSpecificProperty returns the value of a ProviderSpecificProperty if the property exists.
+func (e *Endpoint) GetProviderSpecificProperty(key string) (string, bool) {
 	for _, providerSpecific := range e.ProviderSpecific {
 		if providerSpecific.Name == key {
-			return providerSpecific, true
+			return providerSpecific.Value, true
 		}
 	}
-	return ProviderSpecificProperty{}, false
+	return "", false
+}
+
+// SetProviderSpecificProperty sets the value of a ProviderSpecificProperty.
+func (e *Endpoint) SetProviderSpecificProperty(key string, value string) {
+	for i, providerSpecific := range e.ProviderSpecific {
+		if providerSpecific.Name == key {
+			e.ProviderSpecific[i] = ProviderSpecificProperty{
+				Name:  key,
+				Value: value,
+			}
+			return
+		}
+	}
+
+	e.ProviderSpecific = append(e.ProviderSpecific, ProviderSpecificProperty{Name: key, Value: value})
+}
+
+// DeleteProviderSpecificProperty deletes any ProviderSpecificProperty of the specified name.
+func (e *Endpoint) DeleteProviderSpecificProperty(key string) {
+	for i, providerSpecific := range e.ProviderSpecific {
+		if providerSpecific.Name == key {
+			e.ProviderSpecific = append(e.ProviderSpecific[:i], e.ProviderSpecific[i+1:]...)
+			return
+		}
+	}
+}
+
+// Key returns the EndpointKey of the Endpoint.
+func (e *Endpoint) Key() EndpointKey {
+	return EndpointKey{
+		DNSName:       e.DNSName,
+		RecordType:    e.RecordType,
+		SetIdentifier: e.SetIdentifier,
+	}
+}
+
+// IsOwnedBy returns true if the endpoint owner label matches the given ownerID, false otherwise
+func (e *Endpoint) IsOwnedBy(ownerID string) bool {
+	endpointOwner, ok := e.Labels[OwnerLabelKey]
+	return ok && endpointOwner == ownerID
 }
 
 func (e *Endpoint) String() string {
 	return fmt.Sprintf("%s %d IN %s %s %s %s", e.DNSName, e.RecordTTL, e.RecordType, e.SetIdentifier, e.Targets, e.ProviderSpecific)
+}
+
+// Apply filter to slice of endpoints and return new filtered slice that includes
+// only endpoints that match.
+func FilterEndpointsByOwnerID(ownerID string, eps []*Endpoint) []*Endpoint {
+	filtered := []*Endpoint{}
+	for _, ep := range eps {
+		if endpointOwner, ok := ep.Labels[OwnerLabelKey]; !ok || endpointOwner != ownerID {
+			log.Debugf(`Skipping endpoint %v because owner id does not match, found: "%s", required: "%s"`, ep, endpointOwner, ownerID)
+		} else {
+			filtered = append(filtered, ep)
+		}
+	}
+
+	return filtered
 }

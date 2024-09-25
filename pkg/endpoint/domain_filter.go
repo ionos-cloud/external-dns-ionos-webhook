@@ -28,39 +28,6 @@ import (
 // DomainFilterInterface defines the interface to select matching domains for a specific provider or runtime
 type DomainFilterInterface interface {
 	Match(domain string) bool
-	IsConfigured() bool
-}
-
-type MatchAllDomainFilters []DomainFilterInterface
-
-func (f MatchAllDomainFilters) Match(domain string) bool {
-	if !f.IsConfigured() {
-		return true
-	}
-	for _, filter := range f {
-		if filter == nil {
-			continue
-		}
-		if filter.IsConfigured() && !filter.Match(domain) {
-			return false
-		}
-	}
-	return true
-}
-
-func (f MatchAllDomainFilters) IsConfigured() bool {
-	if f == nil {
-		return false
-	}
-	for _, filter := range f {
-		if filter == nil {
-			continue
-		}
-		if filter.IsConfigured() {
-			return true
-		}
-	}
-	return len(f) > 0
 }
 
 // DomainFilter holds a lists of valid domain names
@@ -74,6 +41,8 @@ type DomainFilter struct {
 	// regexExclusion defines a regular expression to exclude the domains matched
 	regexExclusion *regexp.Regexp
 }
+
+var _ DomainFilterInterface = &DomainFilter{}
 
 // domainFilterSerde is a helper type for serializing and deserializing DomainFilter.
 type domainFilterSerde struct {

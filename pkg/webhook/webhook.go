@@ -202,7 +202,12 @@ func (p *Webhook) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugf("requesting adjust endpoints count: %d", len(pve))
-	pve = p.provider.AdjustEndpoints(pve)
+	pve, err := p.provider.AdjustEndpoints(pve)
+	if err != nil {
+		log.Errorf("Failed to call adjust endpoints: %v", err)
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	out, _ := json.Marshal(&pve)
 	log.Debugf("return adjust endpoints response, resultEndpointCount: %d", len(pve))
 	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
@@ -217,7 +222,7 @@ func (p *Webhook) Negotiate(w http.ResponseWriter, r *http.Request) {
 		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
 		return
 	}
-	b, err := p.provider.GetDomainFilter().MarshalJSON()
+	b, err := json.Marshal(p.provider.GetDomainFilter())
 	if err != nil {
 		log.Errorf("failed to marshal domain filter, request method: %s, request path: %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusInternalServerError)

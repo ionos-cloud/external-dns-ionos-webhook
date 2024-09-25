@@ -451,7 +451,7 @@ func (d *MockProvider) Records(ctx context.Context) ([]*endpoint.Endpoint, error
 }
 
 // ApplyChanges MockProvider implementation to be removed when real providers are added
-func (d *MockProvider) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
+func (d *MockProvider) ApplyChanges(_ context.Context, changes *plan.Changes) error {
 	if d.testCase.hasError != nil {
 		return d.testCase.hasError
 	}
@@ -461,13 +461,13 @@ func (d *MockProvider) ApplyChanges(ctx context.Context, changes *plan.Changes) 
 	return nil
 }
 
-func (d *MockProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
+func (d *MockProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error) {
 	if !reflect.DeepEqual(endpoints, d.testCase.expectedEndpointsToAdjust) {
 		d.t.Errorf("expected endpoints to adjust '%v', got '%v'", d.testCase.expectedEndpointsToAdjust, endpoints)
 	}
-	return d.testCase.returnAdjustedEndpoints
+	return d.testCase.returnAdjustedEndpoints, nil
 }
 
-func (d *MockProvider) GetDomainFilter() endpoint.DomainFilter {
+func (d *MockProvider) GetDomainFilter() endpoint.DomainFilterInterface {
 	return d.testCase.returnDomainFilter
 }
