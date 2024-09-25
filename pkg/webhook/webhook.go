@@ -25,6 +25,11 @@ const (
 	logFieldError          = "error"
 )
 
+var (
+	errClientMustProvideContentType  = fmt.Errorf("client must provide a content type")
+	errClientMustProvideAcceptHeader = fmt.Errorf("client must provide an accept header")
+)
+
 var mediaTypeVersion1 = mediaTypeVersion("1")
 
 type mediaType string
@@ -93,13 +98,12 @@ func (p *Webhook) headerCheck(isContentType bool, w http.ResponseWriter, r *http
 	if len(header) == 0 {
 		w.Header().Set(contentTypeHeader, contentTypePlaintext)
 		w.WriteHeader(http.StatusNotAcceptable)
-		msg := "client must provide "
+		var err error
 		if isContentType {
-			msg += "a content type"
+			err = errClientMustProvideContentType
 		} else {
-			msg += "an accept header"
+			err = errClientMustProvideAcceptHeader
 		}
-		err := fmt.Errorf(msg)
 		_, writeErr := fmt.Fprint(w, err.Error())
 		if writeErr != nil {
 			requestLog(r).WithField(logFieldError, writeErr).Fatalf("error writing error message to response writer")

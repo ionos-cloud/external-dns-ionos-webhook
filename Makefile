@@ -1,4 +1,11 @@
-GO_TEST = go run gotest.tools/gotestsum --format pkgname
+## Tool Binaries
+GO_RUN := go run -modfile ./tools/go.mod
+
+GO_TEST = $(GO_RUN) gotest.tools/gotestsum --format pkgname
+GOLANCI_LINT = $(GO_RUN) github.com/golangci/golangci-lint/cmd/golangci-lint
+GOFUMPT = $(GO_RUN) mvdan.cc/gofumpt
+GORELEASER = $(GO_RUN) github.com/goreleaser/goreleaser/v2
+
 
 LICENCES_IGNORE_LIST = $(shell cat licences/licences-ignore-list.txt)
 
@@ -38,17 +45,18 @@ show: ## Show variables
 ##@ Code analysis
 
 .PHONY: fmt
-fmt: ## Run gofumpt against code.
-	go run mvdan.cc/gofumpt -w .
-
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
+fmt: ## Run go fmt against code.
+	$(GOFUMPT) -w .
 
 .PHONY: lint
 lint: ## Run golangci-lint against code.
 	mkdir -p build/reports
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint run --timeout 2m
+	$(GOLANCI_LINT) run --timeout 5m
+
+.PHONY: lint-with-fix
+lint-with-fix: ## Runs linter against all go code with fix.
+	mkdir -p build/reports
+	$(GOLANCI_LINT) run --fix
 
 .PHONY: static-analysis
 static-analysis: lint vet ## Run static analysis against code.
@@ -91,20 +99,20 @@ unit-test: ## Run unit tests
 
 .PHONY: release-check
 release-check: ## Check if the release will work
-	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=ionos-cloud/external-dns-ionos-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) goreleaser release --snapshot --clean --skip=publish
+	GITHUB_SERVER_URL=github.com GITHUB_REPOSITORY=ionos-cloud/external-dns-ionos-webhook REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) $(GORELEASER) release --snapshot --clean --skip=publish
 
 ##@ License
 
 .PHONY: license-check
 license-check: ## Run go-licenses check against code.
-	go install github.com/google/go-licenses
+	go install github.com/google/go-licenses@v1.6.0
 	mkdir -p build/reports
 	echo "$(LICENCES_IGNORE_LIST)"
-	$(GOPATH)/bin/go-licenses check --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./...
+	go-licenses check --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./...
 
 .PHONY: license-report
 license-report: ## Create licenses report against code.
-	go install github.com/google/go-licenses
+	go install github.com/google/go-licenses@v1.6.0
 	mkdir -p build/reports/licenses
-	$(GOPATH)/bin/go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >build/reports/licenses/licenses-list.csv
+	go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >build/reports/licenses/licenses-list.csv
 	cat licences/licenses-manual-list.csv >> build/reports/licenses/licenses-list.csv

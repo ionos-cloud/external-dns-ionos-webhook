@@ -17,12 +17,12 @@ limitations under the License.
 package endpoint
 
 import (
-	log "github.com/sirupsen/logrus"
-
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ErrInvalidHeritage is returned when heritage was not found, or different heritage is found
@@ -93,8 +93,8 @@ func NewLabelsFromStringPlain(labelText string) (Labels, error) {
 func NewLabelsFromString(labelText string, aesKey []byte) (Labels, error) {
 	if len(aesKey) != 0 {
 		decryptedText, encryptionNonce, err := DecryptText(strings.Trim(labelText, "\""), aesKey)
-		//in case if we have decryption error, just try process original text
-		//decryption errors should be ignored here, because we can already have plain-text labels in registry
+		// in case if we have decryption error, just try process original text
+		// decryption errors should be ignored here, because we can already have plain-text labels in registry
 		if err == nil {
 			labels, err := NewLabelsFromStringPlain(decryptedText)
 			if err == nil {
@@ -152,7 +152,6 @@ func (l Labels) Serialize(withQuotes bool, txtEncryptEnabled bool, aesKey []byte
 	log.Debugf("Encrypt the serialized text %#v before returning it.", text)
 	var err error
 	text, err = EncryptText(text, aesKey, encryptionNonce)
-
 	if err != nil {
 		log.Fatalf("Failed to encrypt the text %#v using the encryption key %#v. Got error %#v.", text, aesKey, err)
 	}
