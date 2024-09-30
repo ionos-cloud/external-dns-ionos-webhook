@@ -37,11 +37,13 @@ image:
 logLevel: debug # reduce in production
 
 # -- if true, _ExternalDNS_ will run in a namespaced scope (Role and Rolebinding will be namespaced too).
-namespaced: true
+namespaced: false
 
 # -- _Kubernetes_ resources to monitor for DNS entries.
 sources:
   - ingress
+  - service
+  - crd
 
 extraArgs:
   ## must override the default value with port 8888 with port 8080 because this is hard-coded in the helm chart
@@ -80,6 +82,26 @@ EOF
 # install external-dns with helm
 helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.0 -f external-dns-ionos-values.yaml --install
 ```
+
+### namespaced mode
+
+Currently, the rbac created for a namespaced deployment is not sufficient for the ExternalDNS to work.
+In order to get ExternalDNS running in a namespaced mode, you need to create the necessary cluster-role-(binding) resources manually:
+
+```shell
+# don't forget to adjust the namespace for the service account in the rbac-for-namespaced.yaml file, if you are using a different namespace than 'default'
+kubectl apply -f deployments/rbac-for-namespaced.yaml
+```
+
+In the helm chart configuration you then can skip the rbac configuration, so in the helm values file you set:
+
+```yaml
+namespaced: true
+
+rbac:
+  create: false
+```
+
 
 See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the ionos webhook.
 

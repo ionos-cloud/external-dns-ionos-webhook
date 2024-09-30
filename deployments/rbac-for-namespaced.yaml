@@ -1,0 +1,37 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns-ionos
+  labels:
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns-ionos
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["list","watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get","watch","list"]
+  - apiGroups: [""]
+    resources: ["services","endpoints"]
+    verbs: ["get","watch","list"]
+  - apiGroups: ["extensions","networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get","watch","list"]
+---
+# Source: external-dns/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns-ionos-viewer
+  labels:
+    app.kubernetes.io/name: external-dns
+    app.kubernetes.io/instance: external-dns-ionos
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns-ionos
+subjects:
+  - kind: ServiceAccount
+    name: external-dns-ionos
+    namespace: default
