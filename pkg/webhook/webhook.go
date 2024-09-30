@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,8 +27,8 @@ const (
 )
 
 var (
-	errClientMustProvideContentType  = fmt.Errorf("client must provide a content type")
-	errClientMustProvideAcceptHeader = fmt.Errorf("client must provide an accept header")
+	errClientMustProvideContentType  = errors.New("client must provide a content type")
+	errClientMustProvideAcceptHeader = errors.New("client must provide an accept header")
 )
 
 var mediaTypeVersion1 = mediaTypeVersion("1")
