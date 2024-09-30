@@ -27,8 +27,15 @@ import (
 type Provider interface {
 	Records(ctx context.Context) ([]*endpoint.Endpoint, error)
 	ApplyChanges(ctx context.Context, changes *plan.Changes) error
-	AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint
-	GetDomainFilter() endpoint.DomainFilter
+	// AdjustEndpoints canonicalizes a set of candidate endpoints.
+	// It is called with a set of candidate endpoints obtained from the various sources.
+	// It returns a set modified as required by the provider. The provider is responsible for
+	// adding, removing, and modifying the ProviderSpecific properties to match
+	// the endpoints that the provider returns in `Records` so that the change plan will not have
+	// unnecessary (potentially failing) changes. It may also modify other fields, add, or remove
+	// Endpoints. It is permitted to modify the supplied endpoints.
+	AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error)
+	GetDomainFilter() endpoint.DomainFilterInterface
 }
 
 // BaseProvider implements methods of provider interface that are commonly "ignored" by dns providers
@@ -43,11 +50,11 @@ func NewBaseProvider(domainFilter endpoint.DomainFilter) *BaseProvider {
 }
 
 // GetDomainFilter basic implementation using the common domainFilter attribute
-func (b BaseProvider) GetDomainFilter() endpoint.DomainFilter {
+func (b BaseProvider) GetDomainFilter() endpoint.DomainFilterInterface {
 	return b.domainFilter
 }
 
 // AdjustEndpoints basic implementation of provider interface method
-func (b BaseProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) []*endpoint.Endpoint {
-	return endpoints
+func (b BaseProvider) AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error) {
+	return endpoints, nil
 }

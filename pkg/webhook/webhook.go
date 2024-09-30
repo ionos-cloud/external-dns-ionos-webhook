@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -23,6 +24,11 @@ const (
 	logFieldRequestPath    = "requestPath"
 	logFieldRequestMethod  = "requestMethod"
 	logFieldError          = "error"
+)
+
+var (
+	errClientMustProvideContentType  = errors.New("client must provide a content type")
+	errClientMustProvideAcceptHeader = errors.New("client must provide an accept header")
 )
 
 var mediaTypeVersion1 = mediaTypeVersion("1")
@@ -93,13 +99,12 @@ func (p *Webhook) headerCheck(isContentType bool, w http.ResponseWriter, r *http
 	if len(header) == 0 {
 		w.Header().Set(contentTypeHeader, contentTypePlaintext)
 		w.WriteHeader(http.StatusNotAcceptable)
-		msg := "client must provide "
+		var err error
 		if isContentType {
-			msg += "a content type"
+			err = errClientMustProvideContentType
 		} else {
-			msg += "an accept header"
+			err = errClientMustProvideAcceptHeader
 		}
-		err := fmt.Errorf(msg)
 		_, writeErr := fmt.Fprint(w, err.Error())
 		if writeErr != nil {
 			requestLog(r).WithField(logFieldError, writeErr).Fatalf("error writing error message to response writer")
@@ -202,7 +207,12 @@ func (p *Webhook) AdjustEndpoints(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugf("requesting adjust endpoints count: %d", len(pve))
-	pve = p.provider.AdjustEndpoints(pve)
+	pve, err := p.provider.AdjustEndpoints(pve)
+	if err != nil {
+		log.Errorf("Failed to call adjust endpoints: %v", err)
+		w.Header().Set(contentTypeHeader, contentTypePlaintext)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 	out, _ := json.Marshal(&pve)
 	log.Debugf("return adjust endpoints response, resultEndpointCount: %d", len(pve))
 	w.Header().Set(contentTypeHeader, string(mediaTypeVersion1))
@@ -217,7 +227,7 @@ func (p *Webhook) Negotiate(w http.ResponseWriter, r *http.Request) {
 		requestLog(r).WithField(logFieldError, err).Error("accept header check failed")
 		return
 	}
-	b, err := p.provider.GetDomainFilter().MarshalJSON()
+	b, err := json.Marshal(p.provider.GetDomainFilter())
 	if err != nil {
 		log.Errorf("failed to marshal domain filter, request method: %s, request path: %s", r.Method, r.URL.Path)
 		w.WriteHeader(http.StatusInternalServerError)

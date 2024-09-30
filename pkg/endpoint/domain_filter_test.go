@@ -335,7 +335,7 @@ var regexDomainFilterTests = []regexDomainFilterTest{
 		[]string{"foo.org", "bar.org", "example.com"},
 		false,
 		map[string]string{
-			"regexInclude": "\\.bar\\.org$",
+			"regexInclude": `\.bar\.org$`,
 		},
 	},
 	{
@@ -344,7 +344,7 @@ var regexDomainFilterTests = []regexDomainFilterTest{
 		[]string{"foo.org", "bar.org", "example.foo.org", "example.bar.org", "a.example.foo.org", "a.example.bar.org"},
 		true,
 		map[string]string{
-			"regexInclude": "(?:foo|bar)\\.org$",
+			"regexInclude": `(?:foo|bar)\.org$`,
 		},
 	},
 	{
@@ -353,8 +353,8 @@ var regexDomainFilterTests = []regexDomainFilterTest{
 		[]string{"foo.org", "bar.org", "a.example.foo.org", "a.example.bar.org"},
 		true,
 		map[string]string{
-			"regexInclude": "(?:foo|bar)\\.org$",
-			"regexExclude": "^example\\.(?:foo|bar)\\.org$",
+			"regexInclude": `(?:foo|bar)\.org$`,
+			"regexExclude": `^example\.(?:foo|bar)\.org$`,
 		},
 	},
 	{
@@ -363,8 +363,8 @@ var regexDomainFilterTests = []regexDomainFilterTest{
 		[]string{"example.foo.org", "example.bar.org"},
 		false,
 		map[string]string{
-			"regexInclude": "(?:foo|bar)\\.org$",
-			"regexExclude": "^example\\.(?:foo|bar)\\.org$",
+			"regexInclude": `(?:foo|bar)\.org$`,
+			"regexExclude": `^example\.(?:foo|bar)\.org$`,
 		},
 	},
 	{
@@ -394,8 +394,8 @@ func TestDomainFilterMatch(t *testing.T) {
 			})
 
 			for _, domain := range tt.domains {
-				assert.Equal(t, tt.expected, domainFilter.Match(domain), "should not fail: %v in test-case #%v", domain, i)
-				assert.Equal(t, tt.expected, domainFilter.Match(domain+"."), "should not fail: %v in test-case #%v", domain+".", i)
+				assert.Equal(t, tt.expected, domainFilter.Match(domain), "%v", domain)
+				assert.Equal(t, tt.expected, domainFilter.Match(domain+"."), "%v", domain+".")
 
 				assert.Equal(t, tt.expected, deserialized.Match(domain), "deserialized %v", domain)
 				assert.Equal(t, tt.expected, deserialized.Match(domain+"."), "deserialized %v", domain+".")
@@ -419,8 +419,8 @@ func TestDomainFilterWithExclusions(t *testing.T) {
 			})
 
 			for _, domain := range tt.domains {
-				assert.Equal(t, tt.expected, domainFilter.Match(domain), "should not fail: %v in test-case #%v", domain, i)
-				assert.Equal(t, tt.expected, domainFilter.Match(domain+"."), "should not fail: %v in test-case #%v", domain+".", i)
+				assert.Equal(t, tt.expected, domainFilter.Match(domain), "%v", domain)
+				assert.Equal(t, tt.expected, domainFilter.Match(domain+"."), "%v", domain+".")
 
 				assert.Equal(t, tt.expected, deserialized.Match(domain), "deserialized %v", domain)
 				assert.Equal(t, tt.expected, deserialized.Match(domain+"."), "deserialized %v", domain+".")
@@ -439,107 +439,6 @@ func TestDomainFilterMatchWithEmptyFilter(t *testing.T) {
 	}
 }
 
-func TestDomainFilterMatchParent(t *testing.T) {
-	parentMatchTests := []domainFilterTest{
-		{
-			[]string{"a.example.com."},
-			[]string{},
-			[]string{"example.com"},
-			true,
-			map[string][]string{
-				"include": {"a.example.com"},
-			},
-		},
-		{
-			[]string{" a.example.com "},
-			[]string{},
-			[]string{"example.com"},
-			true,
-			map[string][]string{
-				"include": {"a.example.com"},
-			},
-		},
-		{
-			[]string{""},
-			[]string{},
-			[]string{"example.com"},
-			true,
-			map[string][]string{},
-		},
-		{
-			[]string{".a.example.com."},
-			[]string{},
-			[]string{"example.com"},
-			false,
-			map[string][]string{
-				"include": {".a.example.com"},
-			},
-		},
-		{
-			[]string{"a.example.com.", "b.example.com"},
-			[]string{},
-			[]string{"example.com"},
-			true,
-			map[string][]string{
-				"include": {"a.example.com", "b.example.com"},
-			},
-		},
-		{
-			[]string{"a.example.com"},
-			[]string{},
-			[]string{"b.example.com"},
-			false,
-			map[string][]string{
-				"include": {"a.example.com"},
-			},
-		},
-		{
-			[]string{"example.com"},
-			[]string{},
-			[]string{"example.com"},
-			false,
-			map[string][]string{
-				"include": {"example.com"},
-			},
-		},
-		{
-			[]string{"example.com"},
-			[]string{},
-			[]string{"anexample.com"},
-			false,
-			map[string][]string{
-				"include": {"example.com"},
-			},
-		},
-		{
-			[]string{""},
-			[]string{},
-			[]string{""},
-			true,
-			map[string][]string{},
-		},
-	}
-	for i, tt := range parentMatchTests {
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			domainFilter := NewDomainFilterWithExclusions(tt.domainFilter, tt.exclusions)
-
-			assertSerializes(t, domainFilter, tt.expectedSerialization)
-			deserialized := deserialize(t, map[string][]string{
-				"include": tt.domainFilter,
-				"exclude": tt.exclusions,
-			})
-
-			for _, domain := range tt.domains {
-				assert.Equal(t, tt.expected, domainFilter.MatchParent(domain), "should not fail: %v in test-case #%v", domain, i)
-				assert.Equal(t, tt.expected, domainFilter.MatchParent(domain+"."), "should not fail: %v in test-case #%v", domain+".", i)
-
-				assert.Equal(t, tt.expected, deserialized.MatchParent(domain), "deserialized %v", domain)
-				assert.Equal(t, tt.expected, deserialized.MatchParent(domain+"."), "deserialized %v", domain+".")
-			}
-		})
-	}
-}
-
 func TestRegexDomainFilter(t *testing.T) {
 	for i, tt := range regexDomainFilterTests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
@@ -552,8 +451,8 @@ func TestRegexDomainFilter(t *testing.T) {
 			})
 
 			for _, domain := range tt.domains {
-				assert.Equal(t, tt.expected, domainFilter.Match(domain), "should not fail: %v in test-case #%v", domain, i)
-				assert.Equal(t, tt.expected, domainFilter.Match(domain+"."), "should not fail: %v in test-case #%v", domain+".", i)
+				assert.Equal(t, tt.expected, domainFilter.Match(domain), "%v", domain)
+				assert.Equal(t, tt.expected, domainFilter.Match(domain+"."), "%v", domain+".")
 
 				assert.Equal(t, tt.expected, deserialized.Match(domain), "deserialized %v", domain)
 				assert.Equal(t, tt.expected, deserialized.Match(domain+"."), "deserialized %v", domain+".")
@@ -768,4 +667,105 @@ func deserialize[T any](t *testing.T, serialized map[string]T) DomainFilter {
 	assert.NoError(t, err, "deserializing")
 
 	return deserialized
+}
+
+func TestDomainFilterMatchParent(t *testing.T) {
+	parentMatchTests := []domainFilterTest{
+		{
+			[]string{"a.example.com."},
+			[]string{},
+			[]string{"example.com"},
+			true,
+			map[string][]string{
+				"include": {"a.example.com"},
+			},
+		},
+		{
+			[]string{" a.example.com "},
+			[]string{},
+			[]string{"example.com"},
+			true,
+			map[string][]string{
+				"include": {"a.example.com"},
+			},
+		},
+		{
+			[]string{""},
+			[]string{},
+			[]string{"example.com"},
+			true,
+			map[string][]string{},
+		},
+		{
+			[]string{".a.example.com."},
+			[]string{},
+			[]string{"example.com"},
+			false,
+			map[string][]string{
+				"include": {".a.example.com"},
+			},
+		},
+		{
+			[]string{"a.example.com.", "b.example.com"},
+			[]string{},
+			[]string{"example.com"},
+			true,
+			map[string][]string{
+				"include": {"a.example.com", "b.example.com"},
+			},
+		},
+		{
+			[]string{"a.example.com"},
+			[]string{},
+			[]string{"b.example.com"},
+			false,
+			map[string][]string{
+				"include": {"a.example.com"},
+			},
+		},
+		{
+			[]string{"example.com"},
+			[]string{},
+			[]string{"example.com"},
+			false,
+			map[string][]string{
+				"include": {"example.com"},
+			},
+		},
+		{
+			[]string{"example.com"},
+			[]string{},
+			[]string{"anexample.com"},
+			false,
+			map[string][]string{
+				"include": {"example.com"},
+			},
+		},
+		{
+			[]string{""},
+			[]string{},
+			[]string{""},
+			true,
+			map[string][]string{},
+		},
+	}
+	for i, tt := range parentMatchTests {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			domainFilter := NewDomainFilterWithExclusions(tt.domainFilter, tt.exclusions)
+
+			assertSerializes(t, domainFilter, tt.expectedSerialization)
+			deserialized := deserialize(t, map[string][]string{
+				"include": tt.domainFilter,
+				"exclude": tt.exclusions,
+			})
+
+			for _, domain := range tt.domains {
+				assert.Equal(t, tt.expected, domainFilter.MatchParent(domain), "%v", domain)
+				assert.Equal(t, tt.expected, domainFilter.MatchParent(domain+"."), "%v", domain+".")
+
+				assert.Equal(t, tt.expected, deserialized.MatchParent(domain), "deserialized %v", domain)
+				assert.Equal(t, tt.expected, deserialized.MatchParent(domain+"."), "deserialized %v", domain+".")
+			}
+		})
+	}
 }

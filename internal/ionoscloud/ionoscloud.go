@@ -52,7 +52,7 @@ type DNSService interface {
 // GetAllRecords retrieve all records https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
 func (c *DNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
 	log.Debugf("get all records with offset %d ...", offset)
-	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).FilterState(sdk.AVAILABLE).Execute()
+	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
 		log.Errorf("failed to get all records: %v", err)
 		return records, err
@@ -69,7 +69,7 @@ func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name 
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, name)
 	logger.Debug("get records from zone by name ...")
 	records, _, err := c.client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).FilterName(name).
-		FilterState(sdk.AVAILABLE).Execute()
+		FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
 		logger.Errorf("failed to get records from zone by name: %v", err)
 		return records, err
@@ -85,7 +85,7 @@ func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name 
 // GetZones client get zones method
 func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
 	log.Debug("get all zones ...")
-	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).FilterState(sdk.AVAILABLE).Execute()
+	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
 		log.Errorf("failed to get all zones: %v", err)
 		return zones, err
@@ -123,7 +123,7 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordID, recordId)
 	logger.Debugf("deleting record: %v ...", recordId)
 	if !c.dryRun {
-		_, err := c.client.RecordsApi.ZonesRecordsDelete(ctx, zoneId, recordId).Execute()
+		_, _, err := c.client.RecordsApi.ZonesRecordsDelete(ctx, zoneId, recordId).Execute()
 		if err != nil {
 			logger.Errorf("failed to delete record: %v", err)
 			return err
@@ -198,21 +198,17 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 			break
 		}
 	}
-
-	if p.BaseProvider.GetDomainFilter().IsConfigured() {
-		filteredResult := make([]sdk.RecordRead, 0)
-		for _, record := range result {
-			fqdn := *record.GetMetadata().GetFqdn()
-			if p.BaseProvider.GetDomainFilter().Match(fqdn) {
-				filteredResult = append(filteredResult, record)
-			}
+	domainFilter := p.BaseProvider.GetDomainFilter()
+	filteredResult := make([]sdk.RecordRead, 0)
+	for _, record := range result {
+		fqdn := *record.GetMetadata().GetFqdn()
+		if domainFilter.Match(fqdn) {
+			filteredResult = append(filteredResult, record)
 		}
-		logger := log.WithField(logFieldDomainFilter, p.BaseProvider.GetDomainFilter())
-		logger.Debugf("found %d records after applying domainFilter", len(filteredResult))
-		return filteredResult, nil
-	} else {
-		return result, nil
 	}
+	logger := log.WithField(logFieldDomainFilter, domainFilter)
+	logger.Debugf("found %d records after applying domainFilter", len(filteredResult))
+	return filteredResult, nil
 }
 
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
@@ -362,7 +358,7 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 	}
 	for _, zoneRead := range allZones {
 		zoneName := *zoneRead.GetProperties().GetZoneName()
-		if !p.BaseProvider.GetDomainFilter().IsConfigured() || p.BaseProvider.GetDomainFilter().Match(zoneName) {
+		if p.BaseProvider.GetDomainFilter().Match(zoneName) {
 			zt.AddZone(zoneRead, zoneName)
 		}
 	}
