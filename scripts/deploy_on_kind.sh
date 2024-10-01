@@ -19,8 +19,8 @@ KIND_CLUSTER_RUNNING=$(kind get clusters -q | grep -q $KIND_CLUSTER_NAME && echo
 KIND_CLUSTER_WAIT=60s
 
 ## helm
-HELM_CHART=bitnami/external-dns
-HELM_RELEASE_NAME=ionos-external-dns
+HELM_CHART=external-dns
+HELM_RELEASE_NAME=external-dns
 HELM_VALUES_FILE=deployments/helm/local-kind-values.yaml
 
 HELM_CHART_REPO_URL=https://charts.bitnami.com/bitnami

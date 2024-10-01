@@ -1,58 +1,65 @@
 image:
-  registry: registry.k8s.io
-  repository: external-dns/external-dns
-  tag: v0.14.0
-  pullPolicy: Always
+  tag: v0.15.0
 
-provider: webhook
-
-sources: 
-  - service
-
+# -- ExternalDNS Log level.
 logLevel: debug
 
-extraArgs:
-  webhook-provider-url: http://localhost:8888
+# -- Interval for DNS updates.
+interval: 1m
 
-sidecars:
-  - name: webhook
-    image: localhost:5001/external-dns-ionos-webhook:latest
-    imagePullPolicy: Always
-    ports:
-      - containerPort: 8888
-        name: http
-    livenessProbe:
-      httpGet:
-        path: /health
-        port: http
-      initialDelaySeconds: 10
-      timeoutSeconds: 5
-    readinessProbe:
-      httpGet:
-        path: /health
-        port: http
-      initialDelaySeconds: 10
-      timeoutSeconds: 5
+namespaced: false
+
+rbac:
+  # -- If `true`, create a `ClusterRole` & `ClusterRoleBinding` with access to the Kubernetes API.
+  create: true
+
+# -- _Kubernetes_ resources to monitor for DNS entries.
+sources:
+  - ingress
+  - service
+
+# -- How DNS records are synchronized between sources and providers; available values are sync & upsert-only.
+policy: upsert-only
+
+## - Limit possible target zones by domain suffixes.
+domainFilters:
+  - test.com
+
+## -- Intentionally exclude domains from being managed.
+excludeDomains: []
+
+extraArgs:
+  ## must override the default value 8888 as port 8080 is hard-coded in the helm chart
+  - --webhook-provider-url=http://localhost:8080
+
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
+      tag: v0.6.1
     env:
       - name: LOG_LEVEL
         value: debug
-      - name: LOG_FORMAT
-        value: txt
-#      - name: DRY_RUN
-#        value: "true"
-#      - name: DOMAIN_FILTER
-#        value: "alexkrieg.com,alexkrieg.de"
-#      - name: EXCLUDE_DOMAIN_FILTER
-#        value: "test.com,test.de"
-#      - name: REGEXP_DOMAIN_FILTER
-#        value: ""
-#      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
-#        value: ""
+      - name: IONOS_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: ionos-credentials
+            key: api-key
       - name: SERVER_HOST
         value: "0.0.0.0"
-      - name: IONOS_API_KEY
-        value: "test-api-key"
-      - name: IONOS_API_URL
-        value: "http://dns-mockserver.dns-mockserver.svc.cluster.local"
+      - name: SERVER_PORT
+        value: "8080"
       - name: IONOS_DEBUG
+        value: "false"
+      - name: DOMAIN_FILTER
+        value: alexkrieg.com
+      - name: DRY_RUN
         value: "true"
+    livenessProbe:
+      httpGet:
+        path: /health
+    readinessProbe:
+      httpGet:
+        path: /health
+

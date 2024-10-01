@@ -1,11 +1,12 @@
 ## Tool Binaries
 GO_RUN := go run -modfile ./tools/go.mod
 
+BUILD_DIR := ./build
+
 GO_TEST = $(GO_RUN) gotest.tools/gotestsum --format pkgname
 GOLANCI_LINT = $(GO_RUN) github.com/golangci/golangci-lint/cmd/golangci-lint
 GOFUMPT = $(GO_RUN) mvdan.cc/gofumpt
 GORELEASER = $(GO_RUN) github.com/goreleaser/goreleaser/v2
-
 
 LICENCES_IGNORE_LIST = $(shell cat licences/licences-ignore-list.txt)
 
@@ -21,11 +22,17 @@ LOG_LEVEL = debug
 LOG_ENVIRONMENT = production
 LOG_FORMAT = auto
 
-
 REGISTRY ?= localhost:5001
 IMAGE_NAME ?= external-dns-ionos-webhook
 IMAGE_TAG ?= latest
 IMAGE = $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+KIND_CLUSTER_NAME = external-dns
+KIND_CLUSTER_CONFIG = ./deployments/kind/cluster.yaml
+KIND_CLUSTER_RUNNING ?= $(shell kind get clusters | grep $(KIND_CLUSTER_NAME))
+KIND_CLUSTER_WAIT = 60s
+
+EXTERNALDNS_IMAGE = registry.k8s.io/external-dns/external-dns:v0.15.0
 
 ##@ General
 
@@ -40,6 +47,9 @@ show: ## Show variables
 	@echo "IMAGE_NAME: $(IMAGE_NAME)"
 	@echo "IMAGE_TAG: $(IMAGE_TAG)"
 	@echo "IMAGE: $(IMAGE)"
+	@echo "LOG_LEVEL: $(LOG_LEVEL)"
+	@echo "KIND_CLUSTER_NAME: $(KIND_CLUSTER_NAME)"
+	@echo "KIND_CLUSTER_RUNNING: $(KIND_CLUSTER_RUNNING)"
 
 
 ##@ Code analysis
@@ -50,12 +60,12 @@ fmt: ## Run go fmt against code.
 
 .PHONY: lint
 lint: ## Run golangci-lint against code.
-	mkdir -p build/reports
+	mkdir -p $(BUILD_DIR)/reports
 	$(GOLANCI_LINT) run --timeout 5m
 
 .PHONY: lint-with-fix
 lint-with-fix: ## Runs linter against all go code with fix.
-	mkdir -p build/reports
+	mkdir -p $(BUILD_DIR)/reports
 	$(GOLANCI_LINT) run --fix
 
 .PHONY: static-analysis
@@ -66,16 +76,16 @@ static-analysis: lint ## Run static analysis against code.
 .PHONY: clean
 clean: ## Clean the build directory
 	rm -rf ./dist
-	rm -rf ./build
+	rm -rf $(BUILD_DIR)
 	rm -rf ./vendor
 
 .PHONY: build
 build: ## Build the binary
-	CGO_ENABLED=0 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
+	CGO_ENABLED=0 go build -o $(BUILD_DIR)/bin/$(ARTIFACT_NAME) ./cmd/webhook
 
 .PHONY: run
 run:build ## Run the binary on local machine
-	LOG_LEVEL=$(LOG_LEVEL) LOG_ENVIRONMENT=$(LOG_ENVIRONMENT) LOG_FORMAT=$(LOG_FORMAT) build/bin/external-dns-ionos-webhook
+	LOG_LEVEL=$(LOG_LEVEL) LOG_ENVIRONMENT=$(LOG_ENVIRONMENT) LOG_FORMAT=$(LOG_FORMAT) $(BUILD_DIR)/bin/external-dns-ionos-webhook
 
 ##@ Docker
 
@@ -91,9 +101,13 @@ docker-push: ## Push the docker image
 
 .PHONY: unit-test
 unit-test: ## Run unit tests
-	mkdir -p build/reports
-	$(GO_TEST) --junitfile build/reports/unit-test.xml -- -race ./... -count=1 -short -cover -coverprofile build/reports/unit-test-coverage.out
+	mkdir -p $(BUILD_DIR)/reports
+	$(GO_TEST) --junitfile $(BUILD_DIR)/reports/unit-test.xml -- -tags=unit -race ./... -count=1 -short -cover -coverprofile $(BUILD_DIR)/reports/unit-test-coverage.out
 
+.PHONY: integration-test
+integration-test: ## Run integration tests
+	mkdir -p $(BUILD_DIR)/reports
+	$(GO_TEST) --junitfile $(BUILD_DIR)/reports/integration-test.xml -- -tags=integration ./... -count=1 -cover -coverprofile $(BUILD_DIR)/reports/integration-test-coverage.out
 
 ##@ Release
 
@@ -106,13 +120,38 @@ release-check: ## Check if the release will work
 .PHONY: license-check
 license-check: ## Run go-licenses check against code.
 	go install github.com/google/go-licenses@v1.6.0
-	mkdir -p build/reports
+	mkdir -p $(BUILD_DIR)/reports
 	echo "$(LICENCES_IGNORE_LIST)"
 	go-licenses check --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./...
 
 .PHONY: license-report
 license-report: ## Create licenses report against code.
 	go install github.com/google/go-licenses@v1.6.0
-	mkdir -p build/reports/licenses
-	go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >build/reports/licenses/licenses-list.csv
-	cat licences/licenses-manual-list.csv >> build/reports/licenses/licenses-list.csv
+	mkdir -p $(BUILD_DIR)/reports/licenses
+	go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >$(BUILD_DIR)/reports/licenses/licenses-list.csv
+	cat licences/licenses-manual-list.csv >> $(BUILD_DIR)/reports/licenses/licenses-list.csv
+
+.PHONY: kind
+kind: ## Create a kind cluster if not exists
+# if KIND_CLUSTER_RUNNING is empty, then create the cluster
+ifeq ($(KIND_CLUSTER_RUNNING),)
+	kind create cluster --name $(KIND_CLUSTER_NAME) --config $(KIND_CLUSTER_CONFIG)
+	mkdir -p $(BUILD_DIR)/kind
+	kind get kubeconfig --name $(KIND_CLUSTER_NAME) > $(BUILD_DIR)/kind/kubeconfig
+endif
+
+.PHONY: kind-delete
+kind-delete: ## Delete the kind cluster
+ifeq ($(KIND_CLUSTER_RUNNING),$(KIND_CLUSTER_NAME))
+	kind delete cluster --name $(KIND_CLUSTER_NAME)
+endif
+
+.PHONY: external-dns
+external-dns: ## run external-dns
+	docker run --network host --rm --name external-dns -v $(BUILD_DIR)/kind/config:/root/.kube/config \
+	$(EXTERNALDNS_IMAGE) --source=ingress --provider=webhook --log-level=$(LOG_LEVEL) --dry-run
+
+.PHONY: mockserver
+mockserver: ## Run mockserver
+	#java -jar $(MOCKSERVER_JAR) -serverPort 1080 -logLevel INFO -log4j2
+	docker run --network host --rm -p 1080:1080 -e MOCKSERVER_LOG_LEVEL=DEBUG  mockserver/mockserver:5.15.0
