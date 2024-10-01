@@ -137,13 +137,14 @@ kind: ## Create a kind cluster if not exists
 ifeq ($(KIND_CLUSTER_RUNNING),)
 	kind create cluster --name $(KIND_CLUSTER_NAME) --config $(KIND_CLUSTER_CONFIG)
 	mkdir -p $(BUILD_DIR)/kind
-	kind get kubeconfig --name $(KIND_CLUSTER_NAME) > $(BUILD_DIR)/kind/kubeconfig
+	kind get kubeconfig --name $(KIND_CLUSTER_NAME) > $(BUILD_DIR)/kind/config
 endif
 
 .PHONY: kind-delete
 kind-delete: ## Delete the kind cluster
 ifeq ($(KIND_CLUSTER_RUNNING),$(KIND_CLUSTER_NAME))
 	kind delete cluster --name $(KIND_CLUSTER_NAME)
+	rm -rf $(BUILD_DIR)/kind
 endif
 
 .PHONY: external-dns
