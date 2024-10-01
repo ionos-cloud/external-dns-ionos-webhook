@@ -21,63 +21,89 @@ The deployment can be performed in every way Kubernetes supports.
 The following example shows the deployment as
 a [sidecar container](https://kubernetes.io/docs/concepts/workloads/pods/#workload-resources-for-managing-pods) in the
 ExternalDNS pod
-using the [Bitnami Helm charts for ExternalDNS](https://github.com/bitnami/charts/tree/main/bitnami/external-dns).
+using the [charts for ExternalDNS](https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns).
 
 ```shell
-helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+
 kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
 
 # create the helm values file
 cat <<EOF > external-dns-ionos-values.yaml
 image:
-  registry: registry.k8s.io
-  repository: external-dns/external-dns
-  tag: v0.14.0
+  tag: v0.15.0
 
-# restrict to namespace
-# namespace: external-dns 
+# -- ExternalDNS Log level.
+logLevel: debug # reduce in production
 
-provider: webhook
+# -- if true, _ExternalDNS_ will run in a namespaced scope (Role and Rolebinding will be namespaced too).
+namespaced: false
+
+# -- _Kubernetes_ resources to monitor for DNS entries.
+sources:
+  - ingress
+  - service
+  - crd
 
 extraArgs:
-  webhook-provider-url: http://localhost:8888
+  ## must override the default value with port 8888 with port 8080 because this is hard-coded in the helm chart
+  - --webhook-provider-url=http://localhost:8080
 
-sidecars:
-  - name: ionos-webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:v0.7.0
-    ports:
-      - containerPort: 8888
-        name: http
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
+      tag: v0.6.1
+    env:
+    - name: LOG_LEVEL
+      value: debug # reduce in production
+    - name: IONOS_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: ionos-credentials
+          key: api-key
+    - name: SERVER_HOST
+      value: "0.0.0.0"
+    - name: SERVER_PORT
+      value: "8080"
+    - name: IONOS_DEBUG
+      value: "false" # put this to true if you want see details of the http requests
+    - name: DRY_RUN
+      value: "true" # set to false to apply changes
     livenessProbe:
       httpGet:
         path: /health
-        port: http
-      initialDelaySeconds: 10
-      timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /health
-        port: http
-      initialDelaySeconds: 10
-      timeoutSeconds: 5
-    env:
-      - name: LOG_LEVEL
-        value: debug
-      - name: IONOS_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: ionos-credentials
-            key: api-key
-      - name: SERVER_HOST
-        value: "0.0.0.0" 
-      - name: IONOS_DEBUG
-        value: "true"  
 EOF
+
 # install external-dns with helm
-helm install external-dns-ionos bitnami/external-dns -f external-dns-ionos-values.yaml
+helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.0 -f external-dns-ionos-values.yaml --install
 ```
 
-See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of webhook sidecar.
+### namespaced mode
+
+Currently, the rbac created for a namespaced deployment is not sufficient for the ExternalDNS to work.
+In order to get ExternalDNS running in a namespaced mode, you need to create the necessary cluster-role-(binding) resources manually:
+
+```shell
+# don't forget to adjust the namespace for the service account in the rbac-for-namespaced.yaml file, if you are using a different namespace than 'default'
+kubectl apply -f deployments/rbac-for-namespaced.yaml
+```
+
+In the helm chart configuration you then can skip the rbac configuration, so in the helm values file you set:
+
+```yaml
+namespaced: true
+
+rbac:
+  create: false
+```
+
+
+See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the ionos webhook.
 
 ## Verify the image resource integrity
 
