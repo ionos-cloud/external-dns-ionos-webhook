@@ -5,6 +5,8 @@ go 1.23.1
 require (
 	github.com/golangci/golangci-lint v1.61.0
 	github.com/goreleaser/goreleaser/v2 v2.3.2
+	github.com/ionos-cloud/mockserver-client-go v0.0.0-20240120134558-9220b88ba126
+	github.com/samber/lo v1.47.0
 	gotest.tools/gotestsum v1.12.0
 
 )
