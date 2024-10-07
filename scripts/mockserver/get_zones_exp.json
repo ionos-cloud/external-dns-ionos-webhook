@@ -1,0 +1,53 @@
+{
+  "httpRequest": {
+    "method": "GET",
+    "path": "/zones",
+    "headers": {
+      "Accept": [
+        "application/json"
+      ]
+    }
+  },
+  "httpResponse": {
+    "body": {
+      "_links": {},
+      "href": "href",
+      "id": "someid",
+      "items": [
+        {
+          "href": "href",
+          "id": "ea764b48-c163-41bd-8fef-2390650ef0e3",
+          "metadata": {
+            "nameservers": [
+              "nameserver1",
+              "nameserver1"
+            ],
+            "state": "AVAILABLE"
+          },
+          "properties": {
+            "zoneName": "test.org"
+          },
+          "type": "collection"
+        }
+      ],
+      "limit": 100,
+      "offset": 0,
+      "type": "collection"
+    },
+    "headers": [
+      {
+        "name": "Content-Type",
+        "values": [
+          "application/json"
+        ]
+      }
+    ],
+    "statusCode": 200
+  },
+  "times": {
+    "unlimited": true
+  },
+  "timeToLive": {
+    "unlimited": true
+  }
+}

@@ -32,7 +32,12 @@ KIND_CLUSTER_CONFIG = ./deployments/kind/cluster.yaml
 KIND_CLUSTER_RUNNING ?= $(shell kind get clusters | grep $(KIND_CLUSTER_NAME))
 KIND_CLUSTER_WAIT = 60s
 
+MOCKSERVER_RUNNING ?= $(shell docker ps -q --filter "name=mockserver")
+EXTERNAL_DNS_RUNNING ?= $(shell docker ps -q --filter "name=externaldns")
+
 EXTERNALDNS_IMAGE = registry.k8s.io/external-dns/external-dns:v0.15.0
+
+PSEUDO_IONOS_CLOUD_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsImV4cCI6MTYwOTcyMzQ2MCwiaWF0IjoxNjA5NzIyODYwfQ.nKZ8eIGFEnkCZ4yarPPde23hYzLHhqn9Od_L-X0jf0g"
 
 ##@ General
 
@@ -50,6 +55,9 @@ show: ## Show variables
 	@echo "LOG_LEVEL: $(LOG_LEVEL)"
 	@echo "KIND_CLUSTER_NAME: $(KIND_CLUSTER_NAME)"
 	@echo "KIND_CLUSTER_RUNNING: $(KIND_CLUSTER_RUNNING)"
+	@echo "KIND_CLUSTER_CONFIG: $(KIND_CLUSTER_CONFIG)"
+	@echo "MOCKSERVER_RUNNING: $(MOCKSERVER_RUNNING)"
+	@echo "EXTERNAL_DNS_RUNNING: $(EXTERNAL_DNS_RUNNING)"
 
 
 ##@ Code analysis
@@ -149,10 +157,51 @@ endif
 
 .PHONY: external-dns
 external-dns: ## run external-dns
-	docker run --network host --rm --name external-dns -v $(BUILD_DIR)/kind/config:/root/.kube/config \
-	$(EXTERNALDNS_IMAGE) --source=ingress --provider=webhook --log-level=$(LOG_LEVEL) --dry-run
+# only if kind is running
+ifeq ($(KIND_CLUSTER_RUNNING),$(KIND_CLUSTER_NAME))
+ifeq ($(EXTERNAL_DNS_RUNNING),)
+	docker run -d --restart=on-failure --network host --name externaldns -v $(BUILD_DIR)/kind/config:/root/.kube/config \
+	$(EXTERNALDNS_IMAGE) --source=ingress --provider=webhook --log-level=$(LOG_LEVEL)
+endif
+else
+	@echo "Kind cluster is not running"
+	@exit 1
+endif
+
+.PHONY: external-dns-delete
+external-dns-delete: ## Stop and delete external-dns
+	docker rm -f externaldns
+
 
 .PHONY: mockserver
 mockserver: ## Run mockserver
-	#java -jar $(MOCKSERVER_JAR) -serverPort 1080 -logLevel INFO -log4j2
-	docker run --network host --rm -p 1080:1080 -e MOCKSERVER_LOG_LEVEL=DEBUG  mockserver/mockserver:5.15.0
+ifeq ($(MOCKSERVER_RUNNING),)
+	docker run -d --network host --name mockserver -p 1080:1080 -e MOCKSERVER_LOG_LEVEL=DEBUG  mockserver/mockserver:5.15.0
+endif
+	./scripts/mockserver/mockserver_stubs.sh
+
+.PHONY: mockserver-dashboard
+mockserver-dashboard: mockserver ## Open mockserver dashboard
+	open http://localhost:1080/mockserver/dashboard
+
+.PHONY: mockserver-delete
+mockserver-delete: ## Stop and delete mockserver
+	docker rm -f mockserver
+
+.PHONY: run-ionos-cloud-webhook
+run-ionos-cloud-webhook: mockserver external-dns ## Run the webhook with ionos-cloud provider with mockserver
+	LOG_LEVEL=debug \
+	LOG_FORMAT=text \
+	SERVER_HOST=localhost \
+	SERVER_PORT=8888 \
+	SERVER_READ_TIMEOUT= \
+	SERVER_WRITE_TIMEOUT= \
+	DOMAIN_FILTER= \
+	EXCLUDE_DOMAIN_FILTER= \
+	REGEXP_DOMAIN_FILTER= \
+	REGEXP_DOMAIN_FILTER_EXCLUSION= \
+	IONOS_API_KEY=$(PSEUDO_IONOS_CLOUD_API_KEY) \
+	IONOS_API_URL="http://localhost:1080" \
+	IONOS_AUTH_HEADER= \
+	IONOS_DEBUG=true \
+	build/bin/external-dns-ionos-webhook
