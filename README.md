@@ -124,58 +124,50 @@ The basic development tasks are provided by make. Run `make help` to see the ava
 
 ### Local deployment
 
-The webhook can be deployed locally with a kind cluster. As a prerequisite, you need to install:
-
-- [Docker](https://docs.docker.com/get-docker/),
-- [Helm](https://helm.sh/ ) with the repos:
-
- ```shell
-  helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
-  helm repo add mockserver https://www.mock-server.com
-  helm repo update
-  ```
-
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-
-```shell
-# setup the kind cluster and deploy external-dns with ionos webhook and a dns mockserver
-./scripts/deploy_on_kind.sh
-
-# check if the webhook is running
-kubectl get pods -l app.kubernetes.io/name=external-dns -o wide
-
-# trigger a DNS change e.g. with annotating the ingress controller service
-kubectl -n ingress-nginx annotate service  ingress-nginx-controller "external-dns.alpha.kubernetes.io/internal-hostname=nginx.internal.example.org." 
- 
-# cleanup
-./scripts/deploy_on_kind.sh clean
-```
-
-### Local acceptance tests
-
-The acceptance tests are run against a kind cluster with ExternalDNS and the webhook deployed.
-The DNS mock server is used to verify the DNS changes. The following diagram shows the test setup:
+The webhook is deployed with external-dns operating on a kind cluster and a [mockserver](https://www.mock-server.com/) as dns-provider.
 
 ```mermaid
 flowchart LR
 subgraph local-machine
-  T[<h3>acceptance-test with hurl</h3><ul><li>create HTTP requests</li><li>check HTTP responses</li></ul>] -- 1. create expectations --> M
-  T -- 2. create annotations/ingress --> K
-  T -- 3. verify expectations --> M
+  T[<h3>external-dns</h3>with webhook provider<br>calling localhost:8888]
+  T -- reconcile services, ingress, CRs etc. --> K
+  T -- get records,apply change plans --> W
+  K{{<h3>K8s kind cluster</h3> }}
+  W[<h3>webhook</h3>serve http on 8888 ]
+  style W fill:#71FF88,color:#101119,stroke-width:2px
+  M[<h3>dns provider mock</h3>mockserver serve http on 1080]
+  W -- CRUD operations on records --> M
 
-  subgraph k8s kind
-    E("external-dns") -. checks .-> K[k8s resources]
-    E -. apply record changes .-> M[dns-mockserver]
-  end
 end
 
 ```
 
-For running the acceptance tests locally you need to install [hurl](https://hurl.dev/).
-To check the test run execution, see the [Hurl files](./test/hurl).
-To view the test reports, see the `./build/reports/hurl` directory.
+As a prerequisite, you need to install:
+
+- [Docker](https://docs.docker.com/get-docker/) and
+- [kind](https://kind.sigs.k8s.io/docs/user/quick-start/),
+
 
 ```shell
-scripts/acceptance-tests.sh 
+# setup the kind cluster
+make kind
+
+# run the webhook locally  together with external-dns and with mockserver as dns provider
+make run-ionos-cloud-webhook
+
+# check the requests to the dns provider mockserver with the mockserver-dashboard
+make mockserver-dashboard
+
+# cleanup
+make clean
 ```
+
+### integration tests
+
+Basically the same setup as for the local deployment is used for the integration tests.
+However, the according processes external-dns, and mockserver are started from the test code,
+only the kind cluster is needed as a prerequisite.
+To be safe regarding side effects, you can run `make clean` and `make kind` before you start the tests with `make integration-tests`.
+
+
+

@@ -163,7 +163,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 	time.Sleep(1 * time.Second)
-	dnsMockClient, err = mockserverClient.NewMockServerClient()
+	dnsMockClient, err = mockserverClient.NewMockServerClient(mockserverClient.WithLog())
 	if err != nil {
 		log.Errorf("Error creating mock server client: %v", err)
 		return

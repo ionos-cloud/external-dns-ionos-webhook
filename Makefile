@@ -48,14 +48,10 @@ help: ## Display this help.
 show: ## Show variables
 	@echo "GOPATH: $(GOPATH)"
 	@echo "ARTIFACT_NAME: $(ARTIFACT_NAME)"
-	@echo "REGISTRY: $(REGISTRY)"
-	@echo "IMAGE_NAME: $(IMAGE_NAME)"
-	@echo "IMAGE_TAG: $(IMAGE_TAG)"
 	@echo "IMAGE: $(IMAGE)"
 	@echo "LOG_LEVEL: $(LOG_LEVEL)"
 	@echo "KIND_CLUSTER_NAME: $(KIND_CLUSTER_NAME)"
 	@echo "KIND_CLUSTER_RUNNING: $(KIND_CLUSTER_RUNNING)"
-	@echo "KIND_CLUSTER_CONFIG: $(KIND_CLUSTER_CONFIG)"
 	@echo "MOCKSERVER_RUNNING: $(MOCKSERVER_RUNNING)"
 	@echo "EXTERNAL_DNS_RUNNING: $(EXTERNAL_DNS_RUNNING)"
 
@@ -82,7 +78,7 @@ static-analysis: lint ## Run static analysis against code.
 ##@ GO
 
 .PHONY: clean
-clean: ## Clean the build directory
+clean: mockserver-delete external-dns-delete kind-delete ## remove all docker processes and clean the build directory
 	rm -rf ./dist
 	rm -rf $(BUILD_DIR)
 	rm -rf ./vendor
@@ -139,6 +135,8 @@ license-report: ## Create licenses report against code.
 	go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >$(BUILD_DIR)/reports/licenses/licenses-list.csv
 	cat licences/licenses-manual-list.csv >> $(BUILD_DIR)/reports/licenses/licenses-list.csv
 
+##@ Local Development
+
 .PHONY: kind
 kind: ## Create a kind cluster if not exists
 # if KIND_CLUSTER_RUNNING is empty, then create the cluster
@@ -177,8 +175,12 @@ external-dns-delete: ## Stop and delete external-dns
 mockserver: ## Run mockserver
 ifeq ($(MOCKSERVER_RUNNING),)
 	docker run -d --network host --name mockserver -p 1080:1080 -e MOCKSERVER_LOG_LEVEL=DEBUG  mockserver/mockserver:5.15.0
+	sleep 3
 endif
-	./scripts/mockserver/mockserver_stubs.sh
+
+.PHONY: mockserver-ionos-cloud
+mockserver-ionos-cloud: ## Create mockserver expectations for ionos-cloud
+	./scripts/mockserver/ionos_cloud_exp.sh
 
 .PHONY: mockserver-dashboard
 mockserver-dashboard: mockserver ## Open mockserver dashboard
@@ -189,7 +191,7 @@ mockserver-delete: ## Stop and delete mockserver
 	docker rm -f mockserver
 
 .PHONY: run-ionos-cloud-webhook
-run-ionos-cloud-webhook: mockserver external-dns ## Run the webhook with ionos-cloud provider with mockserver
+run-ionos-cloud-webhook: mockserver mockserver-ionos-cloud external-dns ## Run the webhook with ionos-cloud provider with mockserver
 	LOG_LEVEL=debug \
 	LOG_FORMAT=text \
 	SERVER_HOST=localhost \
@@ -205,3 +207,4 @@ run-ionos-cloud-webhook: mockserver external-dns ## Run the webhook with ionos-c
 	IONOS_AUTH_HEADER= \
 	IONOS_DEBUG=true \
 	build/bin/external-dns-ionos-webhook
+

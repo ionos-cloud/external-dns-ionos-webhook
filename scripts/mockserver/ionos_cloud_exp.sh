@@ -14,6 +14,6 @@ expectationspath="expectation"
 expectationurl="${mockserver_base_url}/${expectationspath}"
 
 reset
-create_expectation "get_zones_exp.json"
-create_expectation "get_records_exp.json"
+create_expectation "ionos_cloud_get_zones_exp.json"
+create_expectation "ionos_cloud_get_records_exp.json"
 
