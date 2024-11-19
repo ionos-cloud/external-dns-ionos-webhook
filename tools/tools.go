@@ -5,7 +5,6 @@ package tools
 import (
 	_ "github.com/golang/mock/mockgen"
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
-	_ "github.com/google/go-licenses/v2"
 	_ "github.com/goreleaser/goreleaser/v2"
 	_ "gotest.tools/gotestsum"
 )
