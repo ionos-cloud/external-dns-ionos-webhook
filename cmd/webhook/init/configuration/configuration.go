@@ -11,6 +11,7 @@ import (
 type Config struct {
 	ServerHost           string        `env:"SERVER_HOST" envDefault:"localhost"`
 	ServerPort           int           `env:"SERVER_PORT" envDefault:"8888"`
+	MetricsPort          int           `env:"METRICS_PORT" envDefault:"9999"`
 	ServerReadTimeout    time.Duration `env:"SERVER_READ_TIMEOUT"`
 	ServerWriteTimeout   time.Duration `env:"SERVER_WRITE_TIMEOUT"`
 	DomainFilter         []string      `env:"DOMAIN_FILTER" envDefault:""`

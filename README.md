@@ -179,3 +179,7 @@ To view the test reports, see the `./build/reports/hurl` directory.
 ```shell
 scripts/acceptance-tests.sh 
 ```
+
+### Metrics
+
+Go runtime metrics are exposed by the `/metrics` endpoint by default at the `9999` port. The port can be customized using the `METRICS_PORT` environment variables. 
