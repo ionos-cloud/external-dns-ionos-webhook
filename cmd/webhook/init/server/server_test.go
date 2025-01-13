@@ -39,8 +39,10 @@ type testCase struct {
 	log.Ext1FieldLogger
 }
 
-var mockProvider *MockProvider
-var config configuration.Config
+var (
+	mockProvider *MockProvider
+	config       configuration.Config
+)
 
 func TestMain(m *testing.M) {
 	mockProvider = &MockProvider{}
