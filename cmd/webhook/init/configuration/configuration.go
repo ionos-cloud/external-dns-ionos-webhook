@@ -9,9 +9,11 @@ import (
 
 // Config struct for configuration environmental variables
 type Config struct {
-	ServerHost           string        `env:"SERVER_HOST" envDefault:"localhost"`
-	ServerPort           int           `env:"SERVER_PORT" envDefault:"8888"`
-	MetricsPort          int           `env:"METRICS_PORT" envDefault:"9999"`
+	ServerHost string `env:"SERVER_HOST" envDefault:"localhost"`
+	ServerPort int    `env:"SERVER_PORT" envDefault:"8888"`
+	// for external-dns chart > 0.15.0, the service monitor expects the metrics
+	// to be served also through the main port
+	MetricsPort          int           `env:"METRICS_PORT" envDefault:"8080"`
 	ServerReadTimeout    time.Duration `env:"SERVER_READ_TIMEOUT"`
 	ServerWriteTimeout   time.Duration `env:"SERVER_WRITE_TIMEOUT"`
 	DomainFilter         []string      `env:"DOMAIN_FILTER" envDefault:""`
