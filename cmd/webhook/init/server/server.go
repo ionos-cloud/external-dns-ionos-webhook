@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	log "github.com/sirupsen/logrus"
 
@@ -40,6 +41,19 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 			log.Errorf("can't serve on addr: '%s', error: %v", srv.Addr, err)
 		}
 	}()
+
+	if config.MetricsServer && config.MetricsPort != config.ServerPort {
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			log.Infof("starting metrics server on port: %d", config.MetricsPort)
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", config.MetricsPort), nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Errorf("can't serve metrics server on addr: ':%d', error: %v", config.MetricsPort, err)
+			}
+		}()
+	} else {
+		r.Get("/metrics", promhttp.Handler().ServeHTTP)
+	}
+
 	return srv
 }
 

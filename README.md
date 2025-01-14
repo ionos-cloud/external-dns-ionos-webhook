@@ -179,3 +179,7 @@ To view the test reports, see the `./build/reports/hurl` directory.
 ```shell
 scripts/acceptance-tests.sh 
 ```
+
+### Metrics
+
+Go runtime metrics are exposed by the `/metrics` endpoint by default at the same port as the server which is 8888. If you are using an old version of the [external dns](https://github.com/kubernetes-sigs/external-dns) chart that expects the metrics to be exposed at a different port, you can set the `METRICS_SERVER` environment variable to `true` and use the `METRICS_PORT` environment variable to set the port. 

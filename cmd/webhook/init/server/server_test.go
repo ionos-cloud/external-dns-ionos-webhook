@@ -6,11 +6,13 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
@@ -37,11 +39,15 @@ type testCase struct {
 	log.Ext1FieldLogger
 }
 
-var mockProvider *MockProvider
+var (
+	mockProvider *MockProvider
+	config       configuration.Config
+)
 
 func TestMain(m *testing.M) {
 	mockProvider = &MockProvider{}
-	srv := Init(configuration.Init(), webhook.New(mockProvider))
+	config = configuration.Init()
+	srv := Init(config, webhook.New(mockProvider))
 	go ShutdownGracefully(srv)
 	time.Sleep(300 * time.Millisecond)
 	m.Run()
@@ -394,6 +400,23 @@ func TestNegotiate(t *testing.T) {
 		},
 	}
 	executeTestCases(t, testCases)
+}
+
+func TestMetricsServer(t *testing.T) {
+	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%d/metrics", config.ServerPort), nil)
+	assert.NoError(t, err)
+
+	response, err := http.DefaultClient.Do(request)
+	assert.NoError(t, err)
+
+	assert.Equal(t, response.StatusCode, http.StatusOK)
+	assert.Contains(t, response.Header.Get("Content-Type"), "text/plain")
+	res, err := io.ReadAll(response.Body)
+	assert.NoError(t, err)
+
+	body := string(res)
+
+	assert.Contains(t, body, fmt.Sprintf(`go_info{version="%s"}`, runtime.Version()))
 }
 
 func executeTestCases(t *testing.T, testCases []testCase) {
