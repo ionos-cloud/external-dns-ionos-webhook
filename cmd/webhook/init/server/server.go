@@ -42,9 +42,7 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 		}
 	}()
 
-	if config.ServerPort == config.MetricsPort {
-		r.Get("/metrics", promhttp.Handler().ServeHTTP)
-	} else {
+	if config.MetricsServer && config.MetricsPort != config.ServerPort {
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
 			log.Infof("starting metrics server on port: %d", config.MetricsPort)
@@ -52,6 +50,8 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 				log.Errorf("can't serve metrics server on addr: ':%d', error: %v", config.MetricsPort, err)
 			}
 		}()
+	} else {
+		r.Get("/metrics", promhttp.Handler().ServeHTTP)
 	}
 
 	return srv
