@@ -109,8 +109,8 @@ github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5m
 github.com/hashicorp/golang-lru v0.5.0/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ4Ao+sR/qLZy8=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
-github.com/ionos-cloud/sdk-go-dns v1.2.1 h1:Sy7Jg5trzObad9VPvEh7BgeJrIhaxdGlBEvG2aHJZH8=
-github.com/ionos-cloud/sdk-go-dns v1.2.1/go.mod h1:l9gYdwtUshlBOiIi4nHn3RCX81XlV3VoNvLJrO2VfHg=
+github.com/ionos-cloud/sdk-go-dns v1.4.0 h1:mZsjPigGn6V9wAHUaAtCXjecQ2ZkB4i6kro+hf+G7BE=
+github.com/ionos-cloud/sdk-go-dns v1.4.0/go.mod h1:8RHKLPUY6jtZqPtqeEIXmRFM7w4mii9pLXR7phLxwC8=
 github.com/ionos-developer/dns-sdk-go v0.0.5 h1:LxoAy9GoDN4zrU3xbGVEjtdGIw4BCVgYmY/ikF9aRzQ=
 github.com/ionos-developer/dns-sdk-go v0.0.5/go.mod h1:lsQ14d6pPUlTbvCL/J8hAG4V0MlzKQ+1SECGkd09tC8=
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
