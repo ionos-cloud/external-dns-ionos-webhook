@@ -63,20 +63,30 @@ provider:
         secretKeyRef:
           name: ionos-credentials
           key: api-key
-    - name: SERVER_HOST
-      value: "0.0.0.0"
+    # The webhook server listens on localhost by default
+    # Otherwise, you can set SERVER_HOST.
     - name: SERVER_PORT
       value: "8080"
+    # The health server listens on all interfaces by default.
+    # Otherwise, you can set HEALTH_HOST.
+    - name: HEALTH_PORT
+      value: "8081"
     - name: IONOS_DEBUG
       value: "false" # put this to true if you want see details of the http requests
     - name: DRY_RUN
       value: "true" # set to false to apply changes
+    ports:
+      - name: http-health
+        protocol: TCP
+        containerPort: 8081
     livenessProbe:
       httpGet:
         path: /health
+        port: http-health
     readinessProbe:
       httpGet:
         path: /health
+        port: http-health
 EOF
 
 # install external-dns with helm

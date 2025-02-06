@@ -41,6 +41,21 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 		}
 	}()
 
+	rHealth := chi.NewRouter()
+	rHealth.Get("/health", http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("healthy"))
+		},
+	))
+	srvHealth := createHTTPServer(fmt.Sprintf("%s:%d", config.HealthHost, config.HealthPort), rHealth, config.ServerReadTimeout, config.ServerWriteTimeout)
+	go func() {
+		log.Infof("starting health server on addr: '%s'", srvHealth.Addr)
+		if err := srvHealth.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Errorf("can't start health server on addr: '%s', error: %v", srvHealth.Addr, err)
+		}
+	}()
+
 	if config.MetricsServer && config.MetricsPort != config.ServerPort {
 		go func() {
 			http.Handle("/metrics", promhttp.Handler())
