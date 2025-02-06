@@ -6,7 +6,7 @@ By default, Kubernetes manages DNS records internally,
 but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
 provider such as IONOS.
 Therefore, the IONOS webhook allows to manage your
-IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns). 
+IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns).
 
 To use ExternalDNS with IONOS, you need your IONOS API key or token of the account managing
 your domains.
@@ -137,7 +137,7 @@ The basic development tasks are provided by make. Run `make help` to see the ava
 The webhook can be deployed locally with a kind cluster. As a prerequisite, you need to install:
 
 - [Docker](https://docs.docker.com/get-docker/),
-- [Helm](https://helm.sh/ ) with the repos:
+- [Helm](https://helm.sh/) with the repos:
 
  ```shell
   helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -156,8 +156,8 @@ The webhook can be deployed locally with a kind cluster. As a prerequisite, you 
 kubectl get pods -l app.kubernetes.io/name=external-dns -o wide
 
 # trigger a DNS change e.g. with annotating the ingress controller service
-kubectl -n ingress-nginx annotate service  ingress-nginx-controller "external-dns.alpha.kubernetes.io/internal-hostname=nginx.internal.example.org." 
- 
+kubectl -n ingress-nginx annotate service  ingress-nginx-controller "external-dns.alpha.kubernetes.io/internal-hostname=nginx.internal.example.org."
+
 # cleanup
 ./scripts/deploy_on_kind.sh clean
 ```
@@ -187,9 +187,9 @@ To check the test run execution, see the [Hurl files](./test/hurl).
 To view the test reports, see the `./build/reports/hurl` directory.
 
 ```shell
-scripts/acceptance-tests.sh 
+scripts/acceptance-tests.sh
 ```
 
 ### Metrics
 
-Go runtime metrics are exposed by the `/metrics` endpoint by default at the same port as the server which is 8888. If you are using an old version of the [external dns](https://github.com/kubernetes-sigs/external-dns) chart that expects the metrics to be exposed at a different port, you can set the `METRICS_SERVER` environment variable to `true` and use the `METRICS_PORT` environment variable to set the port. 
+Go runtime metrics are exposed by the `/metrics` endpoint by default at the same port as the server which is 8888. If you are using an old version of the [external dns](https://github.com/kubernetes-sigs/external-dns) chart that expects the metrics to be exposed at a different port, you can set the `METRICS_SERVER` environment variable to `true` and use the `METRICS_PORT` environment variable to set the port.
