@@ -50,6 +50,7 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	))
 	srvHealth := createHTTPServer(fmt.Sprintf("%s:%d", config.HealthHost, config.HealthPort), rHealth, config.ServerReadTimeout, config.ServerWriteTimeout)
 	go func() {
+		// NOTE (@NickLarsenNZ): Ideally we would block on receiving from a channel that the webhook server would send from - to be sure it is ready.
 		log.Infof("starting health server on addr: '%s'", srvHealth.Addr)
 		if err := srvHealth.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Errorf("can't start health server on addr: '%s', error: %v", srvHealth.Addr, err)
