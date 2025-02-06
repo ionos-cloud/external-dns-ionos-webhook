@@ -27,34 +27,51 @@ import (
 // - /records (POST): applies the changes
 // - /adjustendpoints (POST): executes the AdjustEndpoints method
 func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
-	r := chi.NewRouter()
-	r.Use(webhook.Health)
-	r.Get("/", p.Negotiate)
-	r.Get("/records", p.Records)
-	r.Post("/records", p.ApplyChanges)
-	r.Post("/adjustendpoints", p.AdjustEndpoints)
+	rWebhook := chi.NewRouter()
+	rWebhook.Get("/", p.Negotiate)
+	rWebhook.Get("/records", p.Records)
+	rWebhook.Post("/records", p.ApplyChanges)
+	rWebhook.Post("/adjustendpoints", p.AdjustEndpoints)
 
-	srv := createHTTPServer(fmt.Sprintf("%s:%d", config.ServerHost, config.ServerPort), r, config.ServerReadTimeout, config.ServerWriteTimeout)
+	srvWebhook := createHTTPServer(fmt.Sprintf("%s:%d", config.ServerHost, config.ServerPort), rWebhook, config.ServerReadTimeout, config.ServerWriteTimeout)
 	go func() {
-		log.Infof("starting server on addr: '%s' ", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Errorf("can't serve on addr: '%s', error: %v", srv.Addr, err)
+		log.Infof("starting webhook server on addr: '%s' ", srvWebhook.Addr)
+		if err := srvWebhook.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Errorf("can't start webhook server on addr: '%s', error: %v", srvWebhook.Addr, err)
+		}
+	}()
+
+	rHealth := chi.NewRouter()
+	rHealth.Get("/health", http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("healthy"))
+		},
+	))
+	srvHealth := createHTTPServer(fmt.Sprintf("%s:%d", config.HealthHost, config.HealthPort), rHealth, config.ServerReadTimeout, config.ServerWriteTimeout)
+	go func() {
+		// NOTE (@NickLarsenNZ): Ideally we would block on receiving from a channel that the webhook server would send from - to be sure it is ready.
+		log.Infof("starting health server on addr: '%s'", srvHealth.Addr)
+		if err := srvHealth.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Errorf("can't start health server on addr: '%s', error: %v", srvHealth.Addr, err)
 		}
 	}()
 
 	if config.MetricsServer && config.MetricsPort != config.ServerPort {
+		rMetrics := chi.NewRouter()
+		rMetrics.Get("/metrics", promhttp.Handler().ServeHTTP)
+		srvMetrics := createHTTPServer(fmt.Sprintf("%s:%d", config.MetricsHost, config.MetricsPort), rMetrics, config.ServerReadTimeout, config.ServerWriteTimeout)
 		go func() {
-			http.Handle("/metrics", promhttp.Handler())
-			log.Infof("starting metrics server on port: %d", config.MetricsPort)
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", config.MetricsPort), nil); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Errorf("can't serve metrics server on addr: ':%d', error: %v", config.MetricsPort, err)
+			log.Infof("starting metrics server on addr: '%s'", srvMetrics.Addr)
+			if err := srvMetrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Errorf("can't start metrics server on addr: '%s', error: %v", srvMetrics.Addr, err)
 			}
 		}()
 	} else {
-		r.Get("/metrics", promhttp.Handler().ServeHTTP)
+		rWebhook.Get("/metrics", promhttp.Handler().ServeHTTP)
 	}
 
-	return srv
+	return srvWebhook
 }
 
 func createHTTPServer(addr string, hand http.Handler, readTimeout, writeTimeout time.Duration) *http.Server {
