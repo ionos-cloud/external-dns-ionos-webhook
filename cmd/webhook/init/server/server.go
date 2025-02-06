@@ -28,7 +28,6 @@ import (
 // - /adjustendpoints (POST): executes the AdjustEndpoints method
 func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 	r := chi.NewRouter()
-	r.Use(webhook.Health)
 	r.Get("/", p.Negotiate)
 	r.Get("/records", p.Records)
 	r.Post("/records", p.ApplyChanges)
