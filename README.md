@@ -63,20 +63,28 @@ provider:
         secretKeyRef:
           name: ionos-credentials
           key: api-key
-    - name: SERVER_HOST
-      value: "0.0.0.0"
+    # The webhook server listens on localhost by default. Otherwise, you can set SERVER_HOST.
     - name: SERVER_PORT
+      value: "8888"
+    # The exposed server listens on all interfaces by default. Otherwise, you can set METRICS_HOST.
+    - name: METRICS_PORT
       value: "8080"
     - name: IONOS_DEBUG
       value: "false" # put this to true if you want see details of the http requests
     - name: DRY_RUN
       value: "true" # set to false to apply changes
+    ports:
+      - name: http-health
+        protocol: TCP
+        containerPort: 8080
     livenessProbe:
       httpGet:
         path: /health
+        port: http-health
     readinessProbe:
       httpGet:
         path: /health
+        port: http-health
 EOF
 
 # install external-dns with helm
@@ -182,4 +190,4 @@ scripts/acceptance-tests.sh
 
 ### Metrics
 
-Go runtime metrics are exposed by the `/metrics` endpoint by default at the same port as the server which is 8888. If you are using an old version of the [external dns](https://github.com/kubernetes-sigs/external-dns) chart that expects the metrics to be exposed at a different port, you can set the `METRICS_SERVER` environment variable to `true` and use the `METRICS_PORT` environment variable to set the port. 
+The Go runtime metrics are exposed via the `/metrics` endpoint on port 8080, which is the same port used for exposing the `/health` endpoint.

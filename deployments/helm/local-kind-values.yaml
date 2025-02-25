@@ -19,18 +19,18 @@ sidecars:
     image: localhost:5001/external-dns-ionos-webhook:latest
     imagePullPolicy: Always
     ports:
-      - containerPort: 8888
-        name: http
+      - containerPort: 8080
+        name: http-health
     livenessProbe:
       httpGet:
         path: /health
-        port: http
+        port: http-health
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /health
-        port: http
+        port: http-health
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
@@ -48,8 +48,6 @@ sidecars:
 #        value: ""
 #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
 #        value: ""
-      - name: SERVER_HOST
-        value: "0.0.0.0"
       - name: IONOS_API_KEY
         value: "test-api-key"
       - name: IONOS_API_URL
