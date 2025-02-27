@@ -16,8 +16,8 @@ KIND_CLUSTER_CONFIG=./deployments/kind/cluster.yaml
 KIND_CLUSTER_RUNNING=$(kind get clusters -q | grep -q $KIND_CLUSTER_NAME && echo "true" || echo "false")
 KIND_CLUSTER_WAIT=60s
 ## helm
-HELM_CHART=bitnami/external-dns
-HELM_RELEASE_NAME=external-dns
+HELM_CHART=external-dns/external-dns
+HELM_RELEASE_NAME=external-dns-ionos
 HELM_VALUES_FILE=deployments/helm/local-kind-values.yaml
 
 
@@ -57,15 +57,15 @@ fi
 if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
     printf "Starting local registry...\n"
     docker run -d --restart=always -p "127.0.0.1:$LOCAL_REGISTRY_PORT:5000" --name "$LOCAL_REGISTRY_NAME" registry:2
+    docker network connect "kind" "$LOCAL_REGISTRY_NAME"
+    kubectl apply -f ./deployments/kind/local-registry-configmap.yaml
+    printf "Installing dns mock server...\n"
+    helm upgrade --install --namespace dns-mockserver --create-namespace dns-mockserver mockserver/mockserver -f ./deployments/dns-mockserver/dns-mockserver-values.yaml
+    sleep 20
+    curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
 fi
 
-# when both the kind cluster and local registry are running, connect them and install dns mock server
-docker network connect "kind" "$LOCAL_REGISTRY_NAME"
-kubectl apply -f ./deployments/kind/local-registry-configmap.yaml
-printf "Installing dns mock server...\n"
-helm upgrade --install --namespace dns-mockserver --create-namespace dns-mockserver mockserver/mockserver -f ./deployments/dns-mockserver/dns-mockserver-values.yaml
-sleep 20
-curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
+
 
 
 printf "Building binary...\n"

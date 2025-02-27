@@ -31,30 +31,26 @@ kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE
 # create the helm values file
 cat <<EOF > external-dns-ionos-values.yaml
 image:
-  tag: v0.15.0
+  tag: v0.15.1
 
 # -- ExternalDNS Log level.
 logLevel: debug # reduce in production
 
-# -- if true, _ExternalDNS_ will run in a namespaced scope (Role and Rolebinding will be namespaced too).
+# -- if true, ExternalDNS will run in a namespaced scope (Role and Rolebinding will be namespaced too).
 namespaced: false
 
-# -- _Kubernetes_ resources to monitor for DNS entries.
+# -- Kubernetes resources to monitor for DNS entries.
 sources:
   - ingress
   - service
   - crd
-
-extraArgs:
-  ## must override the default value with port 8888 with port 8080 because this is hard-coded in the helm chart
-  - --webhook-provider-url=http://localhost:8080
 
 provider:
   name: webhook
   webhook:
     image:
       repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
-      tag: v0.6.1
+      tag: v0.6.3
     env:
     - name: LOG_LEVEL
       value: debug # reduce in production
@@ -65,14 +61,14 @@ provider:
           key: api-key
     # The webhook server listens on localhost by default. Otherwise, you can set SERVER_HOST.
     - name: SERVER_PORT
-      value: "8888"
-    # The exposed server listens on all interfaces by default. Otherwise, you can set METRICS_HOST.
+      value: "8888" # default and recommended port for exposing webhook provider EPs
+    # The exposed server listens on all interfaces (0.0.0.0) by default. Otherwise, you can set METRICS_HOST.
     - name: METRICS_PORT
-      value: "8080"
+      value: "8080" # default and recommended port for exposing metrics and health EPs
     - name: IONOS_DEBUG
-      value: "false" # put this to true if you want see details of the http requests
+      value: "false" # change to "true" if you want see details of the http requests
     - name: DRY_RUN
-      value: "true" # set to false to apply changes
+      value: "true" # set to "false" when you want to allow making changes to your DNS resources
     ports:
       - name: http-health
         protocol: TCP
@@ -88,7 +84,7 @@ provider:
 EOF
 
 # install external-dns with helm
-helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.0 -f external-dns-ionos-values.yaml --install
+helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.1 -f external-dns-ionos-values.yaml --install
 ```
 
 ### namespaced mode
