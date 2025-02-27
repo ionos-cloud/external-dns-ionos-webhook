@@ -71,7 +71,7 @@ clean: ## Clean the build directory
 
 .PHONY: build
 build: ## Build the binary
-	CGO_ENABLED=0 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
 
 .PHONY: run
 run:build ## Run the binary on local machine
@@ -81,7 +81,7 @@ run:build ## Run the binary on local machine
 
 .PHONY: docker-build
 docker-build: build ## Build the docker image
-	docker build ./ -f localbuild.Dockerfile -t $(IMAGE)
+	docker build --platform linux/amd64 ./ -f localbuild.Dockerfile -t $(IMAGE)
 
 .PHONY: docker-push
 docker-push: ## Push the docker image
