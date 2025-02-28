@@ -17,19 +17,16 @@ provider:
       repository: localhost:5001/external-dns-ionos-webhook
       tag: latest
       pullPolicy: Always
-    ports:
-      - containerPort: 8080
-        name: http-health
     livenessProbe:
       httpGet:
         path: /health
-        targetPort: http-health
+        port: 8080
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /health
-        targetPort: http-health
+        port: 8080
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
