@@ -54,6 +54,15 @@ if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
     docker run -d --restart=always -p "127.0.0.1:$LOCAL_REGISTRY_PORT:5000" --name "$LOCAL_REGISTRY_NAME" registry:2
 fi
 
+printf "Building binary...\n"
+make build
+
+printf "Building image...\n"
+make docker-build
+
+printf "Pushing image...\n"
+make docker-push
+
 # run kind cluster if not running
 if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     printf "Starting kind cluster...\n"
@@ -68,14 +77,7 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
 fi
 
-printf "Building binary...\n"
-make build
 
-printf "Building image...\n"
-make docker-build
-
-printf "Pushing image...\n"
-make docker-push
 
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install
 
