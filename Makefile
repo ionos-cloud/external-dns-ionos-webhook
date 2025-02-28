@@ -1,6 +1,9 @@
 ## Tool Binaries
 GO_RUN := go run -modfile ./tools/go.mod
 
+GOOS ?= linux
+GOARCH ?= $(shell go env GOARCH)
+
 GO_TEST = $(GO_RUN) gotest.tools/gotestsum --format pkgname
 GOLANCI_LINT = $(GO_RUN) github.com/golangci/golangci-lint/cmd/golangci-lint
 GOFUMPT = $(GO_RUN) mvdan.cc/gofumpt
@@ -71,7 +74,7 @@ clean: ## Clean the build directory
 
 .PHONY: build
 build: ## Build the binary
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o build/bin/$(ARTIFACT_NAME) ./cmd/webhook
 
 .PHONY: run
 run:build ## Run the binary on local machine
@@ -81,7 +84,7 @@ run:build ## Run the binary on local machine
 
 .PHONY: docker-build
 docker-build: build ## Build the docker image
-	docker build --platform linux/amd64 ./ -f localbuild.Dockerfile -t $(IMAGE)
+	docker build --platform $(GOOS)/$(GOARCH) ./ -f localbuild.Dockerfile -t $(IMAGE)
 
 .PHONY: docker-push
 docker-push: ## Push the docker image
