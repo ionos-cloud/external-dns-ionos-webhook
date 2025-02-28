@@ -51,6 +51,7 @@ provider:
     image:
       repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
       tag: v0.6.3
+      pullPolicy: IfNotPresent
     env:
     - name: LOG_LEVEL
       value: debug # reduce in production
@@ -76,11 +77,11 @@ provider:
     livenessProbe:
       httpGet:
         path: /health
-        port: http-health
+        targetPort: http-health
     readinessProbe:
       httpGet:
         path: /health
-        port: http-health
+        targetPort: http-health
 EOF
 
 # install external-dns with helm
@@ -107,7 +108,7 @@ rbac:
 ```
 
 
-See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the ionos webhook.
+See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the IONOS webhook.
 
 ## Verify the image resource integrity
 
