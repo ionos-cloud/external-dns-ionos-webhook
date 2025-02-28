@@ -17,6 +17,15 @@ provider:
       repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
       tag: v0.6.3
       pullPolicy: Always
+    ports:
+      - containerPort: 8888                                                                                                                                                    │
+        name: http-webhook
+        hostPort: 8888
+        protocol: TCP
+      - containerPort: 8080                                                                                                                                                     │
+        hostPort: 8080
+        name: http-health-metrics
+        protocol: TCP
     livenessProbe:
       httpGet:
         path: /health

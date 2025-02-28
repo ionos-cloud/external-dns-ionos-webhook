@@ -71,9 +71,14 @@ provider:
     - name: DRY_RUN
       value: "true" # set to "false" when you want to allow making changes to your DNS resources
     ports:
-      - name: http-health
-        protocol: TCP
-        containerPort: 8080
+    - containerPort: 8888                                                                                                                                                    │
+      name: http-webhook
+      hostPort: 8888
+      protocol: TCP
+    - containerPort: 8080
+      name: http-health-metrics
+      hostPort: 8080
+      protocol: TCP
     livenessProbe:
       httpGet:
         path: /health
