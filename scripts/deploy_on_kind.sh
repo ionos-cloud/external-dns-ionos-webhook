@@ -77,7 +77,4 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
 fi
 
-
-
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install
-
