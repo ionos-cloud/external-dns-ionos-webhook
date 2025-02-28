@@ -1,36 +1,35 @@
 image:
-  registry: ghcr.io
-  repository: ionos-cloud/external-dns-webhook-provider
-  tag: latest
-  pullPolicy: Always
-
-provider: webhook
+  tag: v0.15.1
 
 sources: 
+  - ingress
   - service
+  - crd
 
 logLevel: debug
 
-extraArgs:
-  webhook-provider-url: http://localhost:8888
+namespaced: false
 
-sidecars:
-  - name: webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:latest
-    imagePullPolicy: Always
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
+      tag: v0.6.3
+      pullPolicy: Always
     ports:
       - containerPort: 8080
         name: http-health
     livenessProbe:
       httpGet:
         path: /health
-        port: http-health
+        targetPort: http-health
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /health
-        port: http-health
+        targetPort: http-health
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
@@ -38,8 +37,9 @@ sidecars:
         value: debug
       - name: LOG_FORMAT
         value: txt
+# use DRY_RUN set to true when you want to test the webhook without actually making changes to your DNS records
       - name: DRY_RUN
-        value: "true"
+        value: "false"
 #      - name: DOMAIN_FILTER
 #        value: "test.com,test.de"
 #      - name: EXCLUDE_DOMAIN_FILTER
@@ -49,7 +49,10 @@ sidecars:
 #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
 #        value: ""
       - name: IONOS_API_KEY
-        value: "put your api key here"
+        valueFrom:
+          secretKeyRef:
+            name: ionos-credentials
+            key: api-key
       - name: IONOS_DEBUG
         value: "false"
 # the following values are derived automatically from the api key
