@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 set -e # exit on first error
 
@@ -19,12 +19,10 @@ KIND_CLUSTER_RUNNING=$(kind get clusters -q | grep -q $KIND_CLUSTER_NAME && echo
 KIND_CLUSTER_WAIT=60s
 
 ## helm
-HELM_CHART=bitnami/external-dns
-HELM_RELEASE_NAME=ionos-external-dns
+HELM_CHART=external-dns/external-dns
+HELM_RELEASE_NAME=external-dns-ionos
 HELM_VALUES_FILE=deployments/helm/local-kind-values.yaml
 
-HELM_CHART_REPO_URL=https://charts.bitnami.com/bitnami
-HELM_CHART_REPO_NAME=bitnami
 
 # if there is a clean up argument, delete the kind cluster and local registry
 if [ "$1" = "clean" ]; then
@@ -47,8 +45,8 @@ if [ "$1" = "helm-delete" ]; then
     exit 0
 fi
 
-printf "LOCAL_REGISTRY_RUNNING: %s\n" "$LOCAL_REGISTRY_RUNNING"
 printf "KIND_CLUSTER_RUNNING: %s\n" "$KIND_CLUSTER_RUNNING"
+printf "LOCAL_REGISTRY_RUNNING: %s\n" "$LOCAL_REGISTRY_RUNNING"
 
 # run local registry if not running
 if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
@@ -80,4 +78,3 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
 fi
 
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install
-

@@ -20,7 +20,6 @@ const (
 	acceptHeader           = "Accept"
 	varyHeader             = "Vary"
 	supportedMediaVersions = "1"
-	healthPath             = "/health"
 	logFieldRequestPath    = "requestPath"
 	logFieldRequestMethod  = "requestMethod"
 	logFieldError          = "error"
@@ -69,16 +68,6 @@ type Webhook struct {
 func New(provider provider.Provider) *Webhook {
 	p := Webhook{provider: provider}
 	return &p
-}
-
-func Health(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == healthPath {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (p *Webhook) contentTypeHeaderCheck(w http.ResponseWriter, r *http.Request) error {

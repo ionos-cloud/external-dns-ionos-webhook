@@ -403,7 +403,7 @@ func TestNegotiate(t *testing.T) {
 }
 
 func TestMetricsServer(t *testing.T) {
-	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:%d/metrics", config.ServerPort), nil)
+	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%d/metrics", config.MetricsHost, config.MetricsPort), nil)
 	assert.NoError(t, err)
 
 	response, err := http.DefaultClient.Do(request)
