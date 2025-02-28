@@ -1,36 +1,35 @@
 image:
-  registry: registry.k8s.io
-  repository: external-dns/external-dns
-  tag: v0.14.0
-  pullPolicy: Always
-
-provider: webhook
+  tag: v0.15.1
 
 sources: 
   - service
+  - ingress
+  - crd
 
 logLevel: debug
 
-extraArgs:
-  webhook-provider-url: http://localhost:8888
+namespaced: false
 
-sidecars:
-  - name: webhook
-    image: localhost:5001/external-dns-ionos-webhook:latest
-    imagePullPolicy: Always
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: localhost:5001/external-dns-ionos-webhook
+      tag: latest
+      pullPolicy: Always
     ports:
       - containerPort: 8080
         name: http-health
     livenessProbe:
       httpGet:
         path: /health
-        port: http-health
+        targetPort: http-health
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /health
-        port: http-health
+        targetPort: http-health
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
