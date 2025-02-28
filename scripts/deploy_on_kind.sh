@@ -6,15 +6,18 @@ set -e # exit on first error
 LOCAL_REGISTRY_PORT=5001
 LOCAL_REGISTRY_NAME=kind-registry
 LOCAL_REGISTRY_RUNNING=$(docker ps -a | grep -q $LOCAL_REGISTRY_NAME && echo "true" || echo "false")
+
 # docker
 IMAGE_REGISTRY=localhost:$LOCAL_REGISTRY_PORT
 IMAGE_NAME=external-dns-ionos-webhook
 IMAGE=$IMAGE_REGISTRY/$IMAGE_NAME
+
 #kind
 KIND_CLUSTER_NAME=external-dns
 KIND_CLUSTER_CONFIG=./deployments/kind/cluster.yaml
 KIND_CLUSTER_RUNNING=$(kind get clusters -q | grep -q $KIND_CLUSTER_NAME && echo "true" || echo "false")
 KIND_CLUSTER_WAIT=60s
+
 ## helm
 HELM_CHART=external-dns/external-dns
 HELM_RELEASE_NAME=external-dns-ionos
@@ -45,18 +48,18 @@ fi
 printf "KIND_CLUSTER_RUNNING: %s\n" "$KIND_CLUSTER_RUNNING"
 printf "LOCAL_REGISTRY_RUNNING: %s\n" "$LOCAL_REGISTRY_RUNNING"
 
+# run local registry if not running
+if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
+    printf "Starting local registry...\n"
+    docker run -d --restart=always -p "127.0.0.1:$LOCAL_REGISTRY_PORT:5000" --name "$LOCAL_REGISTRY_NAME" registry:2
+fi
+
 # run kind cluster if not running
 if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     printf "Starting kind cluster...\n"
     kind create cluster  --name $KIND_CLUSTER_NAME --config $KIND_CLUSTER_CONFIG
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
     sleep $KIND_CLUSTER_WAIT
-fi
-
-# run local registry if not running
-if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
-    printf "Starting local registry...\n"
-    docker run -d --restart=always -p "127.0.0.1:$LOCAL_REGISTRY_PORT:5000" --name "$LOCAL_REGISTRY_NAME" registry:2
     docker network connect "kind" "$LOCAL_REGISTRY_NAME"
     kubectl apply -f ./deployments/kind/local-registry-configmap.yaml
     printf "Installing dns mock server...\n"
@@ -64,9 +67,6 @@ if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
     sleep 20
     curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
 fi
-
-
-
 
 printf "Building binary...\n"
 make build
