@@ -76,17 +76,17 @@ provider:
       hostPort: 8888
       protocol: TCP
     - containerPort: 8080
-      name: http-health-metrics
+      name: http-health
       hostPort: 8080
       protocol: TCP
     livenessProbe:
       httpGet:
         path: /health
-        targetPort: http-health
+        port: 8080
     readinessProbe:
       httpGet:
         path: /health
-        targetPort: http-health
+        port: 8080
 EOF
 
 # install external-dns with helm
