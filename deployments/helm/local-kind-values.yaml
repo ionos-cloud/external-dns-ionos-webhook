@@ -56,6 +56,6 @@ provider:
       - name: IONOS_API_KEY
         value: "test-api-key"
       - name: IONOS_API_URL
-        value: "http://dns-mockserver.dns-mockserver.svc.cluster.local"
+        value: "http://mockserver.mockserver.svc.cluster.local:1080"
       - name: IONOS_DEBUG
         value: "true"

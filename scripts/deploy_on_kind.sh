@@ -54,15 +54,6 @@ if [ "$LOCAL_REGISTRY_RUNNING" = "false" ]; then
     docker run -d --restart=always -p "127.0.0.1:$LOCAL_REGISTRY_PORT:5000" --name "$LOCAL_REGISTRY_NAME" registry:2
 fi
 
-printf "Building binary...\n"
-make build
-
-printf "Building image...\n"
-make docker-build
-
-printf "Pushing image...\n"
-make docker-push
-
 # run kind cluster if not running
 if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     printf "Starting kind cluster...\n"
@@ -72,9 +63,29 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     docker network connect "kind" "$LOCAL_REGISTRY_NAME"
     kubectl apply -f ./deployments/kind/local-registry-configmap.yaml
     printf "Installing dns mock server...\n"
-    helm upgrade --install --namespace dns-mockserver --create-namespace dns-mockserver mockserver/mockserver -f ./deployments/dns-mockserver/dns-mockserver-values.yaml
+    helm upgrade --install --create-namespace --namespace mockserver --set app.serverPort=1080 --set app.logLevel=INFO mockserver mockserver/mockserver
+    sleep $KIND_CLUSTER_WAIT
+    kubectl port-forward svc/mockserver -n mockserver 1080:1080 &
     sleep 20
-    curl -v -X PUT -H "Content-Type: application/json" http://dns-mockserver.127.0.0.1.nip.io/mockserver/expectation -d @scripts/expectation-payload.json
+
+    # set expectation for mock server
+    RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT -H "Content-Type: application/json" http://localhost:1080/mockserver/expectation -d @scripts/expectation-payload.json)
+    if [ "$RESPONSE_CODE" -eq "201" ]; then
+      echo "Created expectation on the mock server successfully"
+    else
+      echo "Failed to create mock server expectation with code $RESPONSE_CODE"
+    fi
+
+    pkill -f "kubectl port-forward"
 fi
+
+printf "Building binary...\n"
+make build
+
+printf "Building image...\n"
+make docker-build
+
+printf "Pushing image...\n"
+make docker-push
 
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install

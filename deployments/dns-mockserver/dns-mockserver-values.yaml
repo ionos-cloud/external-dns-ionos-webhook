@@ -3,13 +3,13 @@ app:
 
 service:
   type: "ClusterIP"
-  port: 80
+  port: 1080
 
 ingress:
   enabled: true
   className: "nginx"
   hosts:
-  - host: "dns-mockserver.127.0.0.1.nip.io"
+  - host: mockserver.local
     paths:
     - path: "/"
       pathType: ImplementationSpecific
