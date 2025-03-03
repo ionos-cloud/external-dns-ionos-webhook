@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	github.com/caarlos0/env/v8 v8.0.0
-	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/ionos-cloud/sdk-go-dns v1.2.1
 	github.com/ionos-developer/dns-sdk-go v0.0.5
 	github.com/prometheus/client_golang v1.20.5
