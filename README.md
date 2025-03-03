@@ -31,30 +31,27 @@ kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE
 # create the helm values file
 cat <<EOF > external-dns-ionos-values.yaml
 image:
-  tag: v0.15.0
+  tag: v0.15.1
 
 # -- ExternalDNS Log level.
 logLevel: debug # reduce in production
 
-# -- if true, _ExternalDNS_ will run in a namespaced scope (Role and Rolebinding will be namespaced too).
+# -- if true, ExternalDNS will run in a namespaced scope (Role and Rolebinding will be namespaced too).
 namespaced: false
 
-# -- _Kubernetes_ resources to monitor for DNS entries.
+# -- Kubernetes resources to monitor for DNS entries.
 sources:
   - ingress
   - service
   - crd
-
-extraArgs:
-  ## must override the default value with port 8888 with port 8080 because this is hard-coded in the helm chart
-  - --webhook-provider-url=http://localhost:8080
 
 provider:
   name: webhook
   webhook:
     image:
       repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
-      tag: v0.6.1
+      tag: v0.6.3
+      pullPolicy: IfNotPresent
     env:
     - name: LOG_LEVEL
       value: debug # reduce in production
@@ -63,24 +60,37 @@ provider:
         secretKeyRef:
           name: ionos-credentials
           key: api-key
-    - name: SERVER_HOST
-      value: "0.0.0.0"
+    # The webhook server listens on localhost by default. Otherwise, you can set SERVER_HOST.
     - name: SERVER_PORT
-      value: "8080"
+      value: "8888" # default and recommended port for exposing webhook provider EPs
+    # The exposed server listens on all interfaces (0.0.0.0) by default. Otherwise, you can set METRICS_HOST.
+    - name: METRICS_PORT
+      value: "8080" # default and recommended port for exposing metrics and health EPs
     - name: IONOS_DEBUG
-      value: "false" # put this to true if you want see details of the http requests
+      value: "false" # change to "true" if you want see details of the http requests
     - name: DRY_RUN
-      value: "true" # set to false to apply changes
+      value: "true" # set to "false" when you want to allow making changes to your DNS resources
+    ports:
+    - containerPort: 8888
+      name: http-webhook
+      hostPort: 8888
+      protocol: TCP
+    - containerPort: 8080
+      name: http-health
+      hostPort: 8080
+      protocol: TCP
     livenessProbe:
       httpGet:
         path: /health
+        port: 8080
     readinessProbe:
       httpGet:
         path: /health
+        port: 8080
 EOF
 
 # install external-dns with helm
-helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.0 -f external-dns-ionos-values.yaml --install
+helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.1 -f external-dns-ionos-values.yaml --install
 ```
 
 ### namespaced mode
@@ -103,7 +113,7 @@ rbac:
 ```
 
 
-See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the ionos webhook.
+See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the IONOS webhook.
 
 ## Verify the image resource integrity
 
@@ -182,4 +192,4 @@ scripts/acceptance-tests.sh
 
 ### Metrics
 
-Go runtime metrics are exposed by the `/metrics` endpoint by default at the same port as the server which is 8888. If you are using an old version of the [external dns](https://github.com/kubernetes-sigs/external-dns) chart that expects the metrics to be exposed at a different port, you can set the `METRICS_SERVER` environment variable to `true` and use the `METRICS_PORT` environment variable to set the port. 
+The Go runtime metrics are exposed via the `/metrics` endpoint on port 8080, which is the same port used for exposing the `/health` endpoint.

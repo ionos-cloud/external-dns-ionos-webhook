@@ -1,36 +1,41 @@
 image:
-  registry: ghcr.io
-  repository: ionos-cloud/external-dns-webhook-provider
-  tag: latest
-  pullPolicy: Always
+  tag: v0.15.1
 
-provider: webhook
-
-sources: 
+sources:
+  - ingress
   - service
+  - crd
 
 logLevel: debug
 
-extraArgs:
-  webhook-provider-url: http://localhost:8888
+namespaced: false
 
-sidecars:
-  - name: webhook
-    image: ghcr.io/ionos-cloud/external-dns-ionos-webhook:latest
-    imagePullPolicy: Always
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
+      tag: v0.6.3
+      pullPolicy: Always
     ports:
       - containerPort: 8888
-        name: http
+        name: http-webhook
+        hostPort: 8888
+        protocol: TCP
+      - containerPort: 8080
+        hostPort: 8080
+        name: http-health-metrics
+        protocol: TCP
     livenessProbe:
       httpGet:
         path: /health
-        port: http
+        port: 8080
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
         path: /health
-        port: http
+        port: 8080
       initialDelaySeconds: 10
       timeoutSeconds: 5
     env:
@@ -38,20 +43,22 @@ sidecars:
         value: debug
       - name: LOG_FORMAT
         value: txt
+      # use DRY_RUN set to false when you want to test the webhook with applying changes to your DNS records
       - name: DRY_RUN
         value: "true"
-#      - name: DOMAIN_FILTER
-#        value: "test.com,test.de"
-#      - name: EXCLUDE_DOMAIN_FILTER
-#        value: "test.com,test.de"
-#      - name: REGEXP_DOMAIN_FILTER
-#        value: ""
-#      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
-#        value: ""
-      - name: SERVER_HOST
-        value: "0.0.0.0"
+      #      - name: DOMAIN_FILTER
+      #        value: "test.com,test.de"
+      #      - name: EXCLUDE_DOMAIN_FILTER
+      #        value: "test.com,test.de"
+      #      - name: REGEXP_DOMAIN_FILTER
+      #        value: ""
+      #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
+      #        value: ""
       - name: IONOS_API_KEY
-        value: "put your api key here"
+        valueFrom:
+          secretKeyRef:
+            name: ionos-credentials
+            key: api-key
       - name: IONOS_DEBUG
         value: "false"
 # the following values are derived automatically from the api key

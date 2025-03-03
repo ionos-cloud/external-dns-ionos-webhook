@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 export HURL_k8s_api_url=http://localhost:8070
 export HURL_dns_mockserver_url=http://dns-mockserver.127.0.0.1.nip.io
