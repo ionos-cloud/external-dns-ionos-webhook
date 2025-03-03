@@ -71,7 +71,7 @@ provider:
     - name: DRY_RUN
       value: "true" # set to "false" when you want to allow making changes to your DNS resources
     ports:
-    - containerPort: 8888                                                                                                                                                    │
+    - containerPort: 8888
       name: http-webhook
       hostPort: 8888
       protocol: TCP
