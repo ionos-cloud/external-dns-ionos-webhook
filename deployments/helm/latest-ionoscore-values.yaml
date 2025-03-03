@@ -1,7 +1,7 @@
 image:
   tag: v0.15.1
 
-sources: 
+sources:
   - ingress
   - service
   - crd
@@ -18,11 +18,11 @@ provider:
       tag: v0.6.3
       pullPolicy: Always
     ports:
-      - containerPort: 8888                                                                                                                                                    │
+      - containerPort: 8888
         name: http-webhook
         hostPort: 8888
         protocol: TCP
-      - containerPort: 8080                                                                                                                                                     │
+      - containerPort: 8080
         hostPort: 8080
         name: http-health-metrics
         protocol: TCP
@@ -43,17 +43,17 @@ provider:
         value: debug
       - name: LOG_FORMAT
         value: txt
-# use DRY_RUN set to false when you want to test the webhook with applying changes to your DNS records
+      # use DRY_RUN set to false when you want to test the webhook with applying changes to your DNS records
       - name: DRY_RUN
         value: "true"
-#      - name: DOMAIN_FILTER
-#        value: "test.com,test.de"
-#      - name: EXCLUDE_DOMAIN_FILTER
-#        value: "test.com,test.de"
-#      - name: REGEXP_DOMAIN_FILTER
-#        value: ""
-#      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
-#        value: ""
+      #      - name: DOMAIN_FILTER
+      #        value: "test.com,test.de"
+      #      - name: EXCLUDE_DOMAIN_FILTER
+      #        value: "test.com,test.de"
+      #      - name: REGEXP_DOMAIN_FILTER
+      #        value: ""
+      #      - name: REGEXP_DOMAIN_FILTER_EXCLUSION
+      #        value: ""
       - name: IONOS_API_KEY
         valueFrom:
           secretKeyRef:
