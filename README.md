@@ -81,11 +81,11 @@ provider:
       protocol: TCP
     livenessProbe:
       httpGet:
-        path: /health
+        path: /healthz
         port: 8080
     readinessProbe:
       httpGet:
-        path: /health
+        path: /healthz
         port: 8080
 EOF
 
@@ -192,4 +192,4 @@ scripts/acceptance-tests.sh
 
 ### Metrics
 
-The Go runtime metrics are exposed via the `/metrics` endpoint on port 8080, which is the same port used for exposing the `/health` endpoint.
+The Go runtime metrics are exposed via the `/metrics` endpoint on port 8080, which is the same port used for exposing the `/healthz` endpoint.
