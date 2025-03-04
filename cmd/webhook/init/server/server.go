@@ -39,10 +39,8 @@ func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
 		}
 	}()
 
-	// Minor note: (Emilija) According to docs, the liveness probe EP should be "/healthz"
-	// https://kubernetes-sigs.github.io/external-dns/latest/docs/tutorials/webhook-provider/#exposed-endpoints
 	rExposed := chi.NewRouter()
-	rExposed.Get("/health", healthCheckHandler)
+	rExposed.Get("/healthz", healthCheckHandler)
 	rExposed.Get("/metrics", promhttp.Handler().ServeHTTP)
 
 	srvExposed := createHTTPServer(fmt.Sprintf("%s:%d", config.MetricsHost, config.MetricsPort), rExposed, config.ServerReadTimeout, config.ServerWriteTimeout)
