@@ -50,7 +50,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
-      tag: v0.7.0
+      tag: v0.7.1
       pullPolicy: IfNotPresent
     env:
     - name: LOG_LEVEL
