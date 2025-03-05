@@ -28,13 +28,13 @@ provider:
         protocol: TCP
     livenessProbe:
       httpGet:
-        path: /health
+        path: /healthz
         port: 8080
       initialDelaySeconds: 10
       timeoutSeconds: 5
     readinessProbe:
       httpGet:
-        path: /health
+        path: /healthz
         port: 8080
       initialDelaySeconds: 10
       timeoutSeconds: 5
