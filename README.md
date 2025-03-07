@@ -70,23 +70,6 @@ provider:
       value: "false" # change to "true" if you want see details of the http requests
     - name: DRY_RUN
       value: "true" # set to "false" when you want to allow making changes to your DNS resources
-    ports:
-    - containerPort: 8888
-      name: http-webhook
-      hostPort: 8888
-      protocol: TCP
-    - containerPort: 8080
-      name: http-health
-      hostPort: 8080
-      protocol: TCP
-    livenessProbe:
-      httpGet:
-        path: /healthz
-        port: 8080
-    readinessProbe:
-      httpGet:
-        path: /healthz
-        port: 8080
 EOF
 
 # install external-dns with helm
