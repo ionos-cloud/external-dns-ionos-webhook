@@ -95,7 +95,6 @@ rbac:
   create: false
 ```
 
-
 See [here](./cmd/webhook/init/configuration/configuration.go) for all available configuration options of the IONOS webhook.
 
 ## Verify the image resource integrity
@@ -110,6 +109,10 @@ by [sigstores transparency log](https://github.com/sigstore/rekor).
 export RELEASE_VERSION=latest
 cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
 ```
+
+### Metrics
+
+The Go runtime metrics are exposed via the `/metrics` endpoint, and the health check is available on the `/healthz` endpoint. Both endpoints are served on port 8080 by default.
 
 ## Development
 
@@ -173,6 +176,3 @@ To view the test reports, see the `./build/reports/hurl` directory.
 scripts/acceptance-tests.sh 
 ```
 
-### Metrics
-
-The Go runtime metrics are exposed via the `/metrics` endpoint on port 8080, which is the same port used for exposing the `/healthz` endpoint.
