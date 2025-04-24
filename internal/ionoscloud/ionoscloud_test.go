@@ -82,6 +82,36 @@ func TestRecords(t *testing.T) {
 			}),
 		},
 		{
+			name: "records of Type A and MX",
+			givenRecords: createRecordReadList(2, 0, 333, func(i int) (string, string, string, int32, string) {
+				if i == 0 {
+					return "a", "a.de", "A", 100, "1.1.1.1"
+				}
+				return "b", "b.de", "MX", 200, "server.example.com"
+			}),
+			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
+				if i == 0 {
+					return "a.de", "A", 100, []string{"1.1.1.1"}
+				}
+				return "b.de", "MX", 200, []string{"333 server.example.com"}
+			}),
+		},
+		{
+			name: "records of Type A and URI",
+			givenRecords: createRecordReadList(2, 0, 333, func(i int) (string, string, string, int32, string) {
+				if i == 0 {
+					return "a", "a.de", "A", 100, "1.1.1.1"
+				}
+				return "b", "b.de", "URI", 200, "server.example.com"
+			}),
+			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
+				if i == 0 {
+					return "a.de", "A", 100, []string{"1.1.1.1"}
+				}
+				return "b.de", "URI", 200, []string{"333 server.example.com"}
+			}),
+		},
+		{
 			name: "multiple records filtered by domain",
 			givenRecords: createRecordReadList(6, 0, 0, func(i int) (string, string, string, int32, string) {
 				if i < 3 {
@@ -246,6 +276,126 @@ func TestApplyChanges(t *testing.T) {
 			expectedRecordsCreated: map[string][]sdk.RecordCreate{
 				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
 					return "", "SRV", int32(900), "myHost.de", 0
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a MX record in a blank zone",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(500), []string{"777 myHost.de"}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "", "MX", int32(500), "myHost.de", 777
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a MX record with no priority field in target",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(700), []string{"myHost.de"}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "", "MX", int32(700), "myHost.de", 0
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a MX record with wrong priority syntax in target",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(900), []string{"NaN myHost.de"}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "", "MX", int32(900), "myHost.de", 0
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a URI record in a blank zone",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "URI", endpoint.TTL(500), []string{"777 myHost.de"}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "", "URI", int32(500), "myHost.de", 777
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a MX record with no priority field in target",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "URI", endpoint.TTL(700), []string{"myHost.de"}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "", "URI", int32(700), "myHost.de", 0
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "create a URI record with wrong priority syntax in target",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "URI", endpoint.TTL(900), []string{"NaN myHost.de"}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "", "URI", int32(900), "myHost.de", 0
 				}),
 			},
 			expectedRecordsDeleted: nil,

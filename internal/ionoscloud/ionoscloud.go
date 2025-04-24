@@ -34,6 +34,8 @@ const (
 	zoneReadMaxCount = 10 * zoneReadLimit
 
 	recordTypeSRV = "SRV"
+	recordTypeMX  = "MX"
+	recordTypeURI = "URI"
 )
 
 type DNSClient struct {
@@ -222,7 +224,9 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 			recordMetadata := *recordRead.GetMetadata()
 			target := *recordProperties.GetContent()
 			priority, hasPriority := recordProperties.GetPriorityOk()
-			if *recordProperties.GetType() == recordTypeSRV && hasPriority {
+			recordType := *recordProperties.GetType()
+			if (recordType == recordTypeSRV || recordType == recordTypeMX ||
+				recordType == recordTypeURI) && hasPriority {
 				target = fmt.Sprintf("%d %s", *priority, target)
 			}
 			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), *recordProperties.GetType(),
@@ -302,7 +306,9 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 			content := target
 			priority := int32(0)
 			splitTarget := strings.Split(target, " ")
-			if ep.RecordType == recordTypeSRV && len(splitTarget) == 2 {
+			recordType := ep.RecordType
+			if (recordType == recordTypeSRV || recordType == recordTypeMX ||
+				recordType == recordTypeURI) && len(splitTarget) == 2 {
 				content = splitTarget[1]
 				priority64, err := strconv.ParseInt(splitTarget[0], 10, 32)
 				if err != nil {
