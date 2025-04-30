@@ -228,12 +228,12 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 			if (recordType == recordTypeSRV || recordType == recordTypeMX) && hasPriority {
 				target = fmt.Sprintf("%d %s", *priority, target)
 			}
-			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), *recordProperties.GetType(),
+			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), string(*recordProperties.GetType()),
 				endpoint.TTL(*recordProperties.GetTtl()), target)
 		}, func(recordRead sdk.RecordRead) string {
 			recordProperties := *recordRead.GetProperties()
 			recordMetadata := *recordRead.GetMetadata()
-			return *recordMetadata.GetFqdn() + "/" + *recordProperties.GetType() + "/" + strconv.Itoa(int(*recordProperties.GetTtl()))
+			return *recordMetadata.GetFqdn() + "/" + string(*recordProperties.GetType()) + "/" + strconv.Itoa(int(*recordProperties.GetTtl()))
 		})
 	return epCollection.RetrieveEndPoints(), nil
 }
@@ -266,7 +266,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		result := make([]sdk.RecordRead, 0)
 		for _, recordRead := range *zoneRecordReadList.GetItems() {
 			record := *recordRead.GetProperties()
-			if *record.GetType() == ep.RecordType {
+			if *record.GetType() == sdk.RecordType(ep.RecordType) {
 				for _, target := range ep.Targets {
 					if *record.GetContent() == target {
 						result = append(result, recordRead)
@@ -318,7 +318,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 					content = target
 				}
 			}
-			record := sdk.NewRecord(recordName, ep.RecordType, content)
+			record := sdk.NewRecord(recordName, sdk.RecordType(ep.RecordType), content)
 			ttl := int32(ep.RecordTTL)
 			if ttl != 0 {
 				record.SetTtl(ttl)

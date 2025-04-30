@@ -802,7 +802,7 @@ func createRecordCreateSlice(count int, modifier func(int) (string, string, int3
 		records[i] = sdk.RecordCreate{
 			Properties: &sdk.Record{
 				Name:    sdk.PtrString(name),
-				Type:    sdk.PtrString(typ),
+				Type:    sdk.RecordType(typ).Ptr(),
 				Ttl:     sdk.PtrInt32(ttl),
 				Content: sdk.PtrString(content),
 				Enabled: sdk.PtrBool(true),
@@ -825,7 +825,7 @@ func createRecordReadList(count, idOffset int, priority int32, modifier func(int
 			Id: sdk.PtrString(fmt.Sprintf("%d", id)),
 			Properties: &sdk.Record{
 				Name:     sdk.PtrString(name),
-				Type:     sdk.PtrString(typ),
+				Type:     sdk.RecordType(typ).Ptr(),
 				Ttl:      sdk.PtrInt32(ttl),
 				Content:  sdk.PtrString(content),
 				Priority: sdk.PtrInt32(priority),
