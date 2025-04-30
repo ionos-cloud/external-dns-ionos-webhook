@@ -102,13 +102,13 @@ func TestRecords(t *testing.T) {
 				if i == 0 {
 					return "a", "a.de", "A", 100, "1.1.1.1"
 				}
-				return "b", "b.de", "URI", 200, "server.example.com"
+				return "b", "b.de", "URI", 200, "333 333 server.example.com"
 			}),
 			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
 				if i == 0 {
 					return "a.de", "A", 100, []string{"1.1.1.1"}
 				}
-				return "b.de", "URI", 200, []string{"333 server.example.com"}
+				return "b.de", "URI", 200, []string{"333 333 server.example.com"}
 			}),
 		},
 		{
@@ -350,32 +350,12 @@ func TestApplyChanges(t *testing.T) {
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "URI", endpoint.TTL(500), []string{"777 myHost.de"}
+					return "a.de", "URI", endpoint.TTL(500), []string{"777 777 myHost.de"}
 				}),
 			},
 			expectedRecordsCreated: map[string][]sdk.RecordCreate{
 				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
-					return "", "URI", int32(500), "myHost.de", 777
-				}),
-			},
-			expectedRecordsDeleted: nil,
-		},
-		{
-			name: "create a MX record with no priority field in target",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
-			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
-			},
-			whenChanges: &plan.Changes{
-				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "URI", endpoint.TTL(700), []string{"myHost.de"}
-				}),
-			},
-			expectedRecordsCreated: map[string][]sdk.RecordCreate{
-				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
-					return "", "URI", int32(700), "myHost.de", 0
+					return "", "URI", int32(500), "777 777 myHost.de", 777
 				}),
 			},
 			expectedRecordsDeleted: nil,
@@ -390,12 +370,12 @@ func TestApplyChanges(t *testing.T) {
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "URI", endpoint.TTL(900), []string{"NaN myHost.de"}
+					return "a.de", "URI", endpoint.TTL(900), []string{"NaN 777 myHost.de"}
 				}),
 			},
 			expectedRecordsCreated: map[string][]sdk.RecordCreate{
 				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
-					return "", "URI", int32(900), "myHost.de", 0
+					return "", "URI", int32(900), "NaN 777 myHost.de", 0
 				}),
 			},
 			expectedRecordsDeleted: nil,

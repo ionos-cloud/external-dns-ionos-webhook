@@ -225,8 +225,7 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 			target := *recordProperties.GetContent()
 			priority, hasPriority := recordProperties.GetPriorityOk()
 			recordType := *recordProperties.GetType()
-			if (recordType == recordTypeSRV || recordType == recordTypeMX ||
-				recordType == recordTypeURI) && hasPriority {
+			if (recordType == recordTypeSRV || recordType == recordTypeMX) && hasPriority {
 				target = fmt.Sprintf("%d %s", *priority, target)
 			}
 			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), *recordProperties.GetType(),
@@ -306,15 +305,17 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 			content := target
 			priority := int32(0)
 			splitTarget := strings.Split(target, " ")
-			recordType := ep.RecordType
-			if (recordType == recordTypeSRV || recordType == recordTypeMX ||
-				recordType == recordTypeURI) && len(splitTarget) == 2 {
-				content = splitTarget[1]
+			if (ep.RecordType == recordTypeSRV || ep.RecordType == recordTypeMX ||
+				ep.RecordType == recordTypeURI) && len(splitTarget) >= 2 {
 				priority64, err := strconv.ParseInt(splitTarget[0], 10, 32)
 				if err != nil {
 					logger.Warnf("failed to parse priority from target '%s'", target)
 				} else {
 					priority = int32(priority64)
+				}
+				content = splitTarget[1]
+				if ep.RecordType == recordTypeURI {
+					content = target
 				}
 			}
 			record := sdk.NewRecord(recordName, ep.RecordType, content)
