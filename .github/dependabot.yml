@@ -4,6 +4,12 @@ updates:
     directory: /
     schedule:
       interval: daily
+    commit-message:
+      prefix: "deps(dependabot)"
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
