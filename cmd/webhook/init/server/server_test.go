@@ -81,30 +81,6 @@ func TestRecords(t *testing.T) {
 			},
 			expectedBody: "[{\"dnsName\":\"test.example.com\",\"targets\":[\"\"],\"recordType\":\"A\",\"recordTTL\":3600,\"labels\":{\"label1\":\"value1\"}}]",
 		},
-		/* 		{
-		   			name:               "no accept header",
-		   			method:             http.MethodGet,
-		   			headers:            map[string]string{},
-		   			path:               "/records",
-		   			body:               "",
-		   			expectedStatusCode: http.StatusNotAcceptable,
-		   			expectedResponseHeaders: map[string]string{
-		   				"Content-Type": "text/plain",
-		   			},
-		   			expectedBody: "client must provide an accept header",
-		   		},
-		   		{
-		   			name:               "wrong accept header",
-		   			method:             http.MethodGet,
-		   			headers:            map[string]string{"Accept": "invalid"},
-		   			path:               "/records",
-		   			body:               "",
-		   			expectedStatusCode: http.StatusUnsupportedMediaType,
-		   			expectedResponseHeaders: map[string]string{
-		   				"Content-Type": "text/plain",
-		   			},
-		   			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		   		}, */
 		{
 			name:               "backend error",
 			hasError:           fmt.Errorf("backend error"),
