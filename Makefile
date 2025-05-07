@@ -1,13 +1,13 @@
 ## Tool Binaries
-GO_RUN := go run -modfile ./tools/go.mod
+GO_TOOL := go tool
 
 GOOS ?= linux
 GOARCH ?= $(shell go env GOARCH)
 
-GO_TEST = $(GO_RUN) gotest.tools/gotestsum --format pkgname
-GOLANCI_LINT = $(GO_RUN) github.com/golangci/golangci-lint/cmd/golangci-lint
-GOFUMPT = $(GO_RUN) mvdan.cc/gofumpt
-GORELEASER = $(GO_RUN) github.com/goreleaser/goreleaser/v2
+GO_TEST = $(GO_TOOL) gotest.tools/gotestsum --format pkgname
+GOLANCI_LINT = $(GO_TOOL) github.com/golangci/golangci-lint/cmd/golangci-lint
+GOFUMPT = $(GO_TOOL) mvdan.cc/gofumpt
+GORELEASER = $(GO_TOOL) github.com/goreleaser/goreleaser/v2
 
 
 LICENCES_IGNORE_LIST = $(shell cat licences/licences-ignore-list.txt)
