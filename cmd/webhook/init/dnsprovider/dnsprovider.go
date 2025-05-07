@@ -14,12 +14,13 @@ import (
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/external-dns/endpoint"
+	externaldnsprovider "sigs.k8s.io/external-dns/provider"
 )
 
-type IONOSProviderFactory func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) provider.Provider
+type IONOSProviderFactory func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) externaldnsprovider.Provider
 
 func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configuration) {
 	if ionosConfig.APIEndpointURL == "" {
@@ -30,17 +31,17 @@ func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configura
 	}
 }
 
-var IonosCoreProviderFactory = func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) provider.Provider {
+var IonosCoreProviderFactory = func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) externaldnsprovider.Provider {
 	setDefaults("https://api.hosting.ionos.com/dns", "X-API-Key", ionosConfig)
 	return ionoscore.NewProvider(baseProvider, ionosConfig)
 }
 
-var IonosCloudProviderFactory = func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) provider.Provider {
+var IonosCloudProviderFactory = func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) externaldnsprovider.Provider {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
 	return ionoscloud.NewProvider(baseProvider, ionosConfig)
 }
 
-func Init(config configuration.Config) (provider.Provider, error) {
+func Init(config configuration.Config) (externaldnsprovider.Provider, error) {
 	var domainFilter endpoint.DomainFilter
 	createMsg := "Creating IONOS provider with "
 

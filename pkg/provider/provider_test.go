@@ -3,8 +3,8 @@ package provider
 import (
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/external-dns/endpoint"
 )
 
 func TestNewBaseProvider(t *testing.T) {

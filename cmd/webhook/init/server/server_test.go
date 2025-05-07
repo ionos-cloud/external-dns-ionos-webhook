@@ -14,8 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"

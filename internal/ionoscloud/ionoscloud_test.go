@@ -9,12 +9,12 @@ import (
 	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

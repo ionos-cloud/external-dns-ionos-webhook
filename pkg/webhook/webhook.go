@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
+	"sigs.k8s.io/external-dns/provider"
 )
 
 const (

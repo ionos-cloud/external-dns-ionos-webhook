@@ -12,8 +12,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 
 	sdk "github.com/ionos-developer/dns-sdk-go"
 	"github.com/stretchr/testify/require"

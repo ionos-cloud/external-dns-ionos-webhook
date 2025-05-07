@@ -17,26 +17,8 @@ limitations under the License.
 package provider
 
 import (
-	"context"
-
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
+	"sigs.k8s.io/external-dns/endpoint"
 )
-
-// Provider defines the interface DNS providers should implement.
-type Provider interface {
-	Records(ctx context.Context) ([]*endpoint.Endpoint, error)
-	ApplyChanges(ctx context.Context, changes *plan.Changes) error
-	// AdjustEndpoints canonicalizes a set of candidate endpoints.
-	// It is called with a set of candidate endpoints obtained from the various sources.
-	// It returns a set modified as required by the provider. The provider is responsible for
-	// adding, removing, and modifying the ProviderSpecific properties to match
-	// the endpoints that the provider returns in `Records` so that the change plan will not have
-	// unnecessary (potentially failing) changes. It may also modify other fields, add, or remove
-	// Endpoints. It is permitted to modify the supplied endpoints.
-	AdjustEndpoints(endpoints []*endpoint.Endpoint) ([]*endpoint.Endpoint, error)
-	GetDomainFilter() endpoint.DomainFilterInterface
-}
 
 // BaseProvider implements methods of provider interface that are commonly "ignored" by dns providers
 // Basic implementation of the methods is done to avoid code repetition

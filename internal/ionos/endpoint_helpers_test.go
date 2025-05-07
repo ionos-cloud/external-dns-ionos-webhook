@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/external-dns/endpoint"
 )
 
 type myRecord struct {
