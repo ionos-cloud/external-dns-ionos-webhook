@@ -14,13 +14,12 @@ import (
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
-	externaldnsprovider "sigs.k8s.io/external-dns/provider"
+	"sigs.k8s.io/external-dns/provider"
 )
 
-type IONOSProviderFactory func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) externaldnsprovider.Provider
+type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
 
 func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configuration) {
 	if ionosConfig.APIEndpointURL == "" {
@@ -31,17 +30,17 @@ func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configura
 	}
 }
 
-var IonosCoreProviderFactory = func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) externaldnsprovider.Provider {
+var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://api.hosting.ionos.com/dns", "X-API-Key", ionosConfig)
-	return ionoscore.NewProvider(baseProvider, ionosConfig)
+	return ionoscore.NewProvider(domainFilter, ionosConfig)
 }
 
-var IonosCloudProviderFactory = func(baseProvider *provider.BaseProvider, ionosConfig *ionos.Configuration) externaldnsprovider.Provider {
+var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
-	return ionoscloud.NewProvider(baseProvider, ionosConfig)
+	return ionoscloud.NewProvider(domainFilter, ionosConfig)
 }
 
-func Init(config configuration.Config) (externaldnsprovider.Provider, error) {
+func Init(config configuration.Config) (provider.Provider, error) {
 	var domainFilter endpoint.DomainFilter
 	createMsg := "Creating IONOS provider with "
 
@@ -74,8 +73,7 @@ func Init(config configuration.Config) (externaldnsprovider.Provider, error) {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
 	createProvider := detectProvider(&ionosConfig)
-	baseProvider := provider.NewBaseProvider(domainFilter)
-	ionosProvider := createProvider(baseProvider, &ionosConfig)
+	ionosProvider := createProvider(domainFilter, &ionosConfig)
 	return ionosProvider, nil
 }
 

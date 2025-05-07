@@ -11,17 +11,18 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	sdk "github.com/ionos-developer/dns-sdk-go"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
+	"sigs.k8s.io/external-dns/provider"
 )
 
 // Provider implements the DNS provider for IONOS DNS.
 type Provider struct {
 	provider.BaseProvider
-	client DnsService
-	dryRun bool
+	client       DnsService
+	dryRun       bool
+	domainFilter endpoint.DomainFilterInterface
 }
 
 // DnsService interface to the dns backend, also needed for creating mocks in tests
@@ -62,13 +63,13 @@ func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId str
 }
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(baseProvider *provider.BaseProvider, configuration *ionos.Configuration) *Provider {
+func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 
 	prov := &Provider{
-		BaseProvider: *baseProvider,
 		client:       DnsClient{client: client},
 		dryRun:       configuration.DryRun,
+		domainFilter: domanfilter,
 	}
 
 	return prov
@@ -321,4 +322,8 @@ func getType(record sdk.RecordResponse) string {
 // sameEndpoints returns if the two endpoints have the same values.
 func sameEndpoints(a endpoint.Endpoint, b endpoint.Endpoint) bool {
 	return a.DNSName == b.DNSName && a.RecordType == b.RecordType && a.RecordTTL == b.RecordTTL && a.Targets.Same(b.Targets)
+}
+
+func (p *Provider) GetDomainFilter() endpoint.DomainFilterInterface {
+	return p.domainFilter
 }

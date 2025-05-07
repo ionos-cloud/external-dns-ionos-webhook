@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
+	"sigs.k8s.io/external-dns/provider"
 )
 
 const (
@@ -140,15 +140,16 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 // Provider extends base provider to work with paas dns rest API
 type Provider struct {
 	provider.BaseProvider
-	client DNSService
+	client       DNSService
+	domainFilter endpoint.DomainFilterInterface
 }
 
 // NewProvider returns an instance of new provider
-func NewProvider(baseProvider *provider.BaseProvider, configuration *ionos.Configuration) *Provider {
+func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 	prov := &Provider{
-		BaseProvider: *baseProvider,
 		client:       &DNSClient{client: client, dryRun: configuration.DryRun},
+		domainFilter: domainFilter,
 	}
 	return prov
 }
@@ -200,7 +201,7 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 			break
 		}
 	}
-	domainFilter := p.BaseProvider.GetDomainFilter()
+	domainFilter := p.GetDomainFilter()
 	filteredResult := make([]sdk.RecordRead, 0)
 	for _, record := range result {
 		fqdn := *record.GetMetadata().GetFqdn()
@@ -365,7 +366,7 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 	}
 	for _, zoneRead := range allZones {
 		zoneName := *zoneRead.GetProperties().GetZoneName()
-		if p.BaseProvider.GetDomainFilter().Match(zoneName) {
+		if p.GetDomainFilter().Match(zoneName) {
 			zt.AddZone(zoneRead, zoneName)
 		}
 	}
@@ -379,4 +380,8 @@ func extractRecordName(fqdn string, zone sdk.ZoneRead) string {
 		return ""
 	}
 	return fqdn[:partOfZoneName-1]
+}
+
+func (p *Provider) GetDomainFilter() endpoint.DomainFilterInterface {
+	return p.domainFilter
 }
