@@ -13,9 +13,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/external-dns/provider/webhook/api"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 )
 
 // Init server initialization function
@@ -24,12 +24,11 @@ import (
 // - /records (GET): returns the current records
 // - /records (POST): applies the changes
 // - /adjustendpoints (POST): executes the AdjustEndpoints method
-func Init(config configuration.Config, p *webhook.Webhook) *http.Server {
+func Init(config configuration.Config, webhookServer api.WebhookServer) *http.Server {
 	rWebhook := chi.NewRouter()
-	rWebhook.Get("/", p.Negotiate)
-	rWebhook.Get("/records", p.Records)
-	rWebhook.Post("/records", p.ApplyChanges)
-	rWebhook.Post("/adjustendpoints", p.AdjustEndpoints)
+	rWebhook.HandleFunc("/", webhookServer.NegotiateHandler)
+	rWebhook.HandleFunc("/records", webhookServer.RecordsHandler)
+	rWebhook.HandleFunc("/adjustendpoints", webhookServer.AdjustEndpointsHandler)
 
 	srvWebhook := createHTTPServer(fmt.Sprintf("%s:%d", config.ServerHost, config.ServerPort), rWebhook, config.ServerReadTimeout, config.ServerWriteTimeout)
 	go func() {

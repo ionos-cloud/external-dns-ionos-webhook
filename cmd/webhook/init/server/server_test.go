@@ -16,9 +16,9 @@ import (
 
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
+	"sigs.k8s.io/external-dns/provider/webhook/api"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 )
 
 type testCase struct {
@@ -47,7 +47,7 @@ var (
 func TestMain(m *testing.M) {
 	mockProvider = &MockProvider{}
 	config = configuration.Init()
-	srv := Init(config, webhook.New(mockProvider))
+	srv := Init(config, api.WebhookServer{Provider: mockProvider})
 	go ShutdownGracefully(srv)
 	time.Sleep(300 * time.Millisecond)
 	m.Run()
@@ -77,39 +77,38 @@ func TestRecords(t *testing.T) {
 			body:               "",
 			expectedStatusCode: http.StatusOK,
 			expectedResponseHeaders: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
+				"Content-Type": api.MediaTypeFormatAndVersion,
 			},
 			expectedBody: "[{\"dnsName\":\"test.example.com\",\"targets\":[\"\"],\"recordType\":\"A\",\"recordTTL\":3600,\"labels\":{\"label1\":\"value1\"}}]",
 		},
-		{
-			name:               "no accept header",
-			method:             http.MethodGet,
-			headers:            map[string]string{},
-			path:               "/records",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide an accept header",
-		},
-		{
-			name:               "wrong accept header",
-			method:             http.MethodGet,
-			headers:            map[string]string{"Accept": "invalid"},
-			path:               "/records",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		},
+		/* 		{
+		   			name:               "no accept header",
+		   			method:             http.MethodGet,
+		   			headers:            map[string]string{},
+		   			path:               "/records",
+		   			body:               "",
+		   			expectedStatusCode: http.StatusNotAcceptable,
+		   			expectedResponseHeaders: map[string]string{
+		   				"Content-Type": "text/plain",
+		   			},
+		   			expectedBody: "client must provide an accept header",
+		   		},
+		   		{
+		   			name:               "wrong accept header",
+		   			method:             http.MethodGet,
+		   			headers:            map[string]string{"Accept": "invalid"},
+		   			path:               "/records",
+		   			body:               "",
+		   			expectedStatusCode: http.StatusUnsupportedMediaType,
+		   			expectedResponseHeaders: map[string]string{
+		   				"Content-Type": "text/plain",
+		   			},
+		   			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
+		   		}, */
 		{
 			name:               "backend error",
 			hasError:           fmt.Errorf("backend error"),
 			method:             http.MethodGet,
-			headers:            map[string]string{"Accept": "application/external.dns.webhook+json;version=1"},
 			path:               "/records",
 			body:               "",
 			expectedStatusCode: http.StatusInternalServerError,
@@ -161,52 +160,21 @@ func TestApplyChanges(t *testing.T) {
 			},
 		},
 		{
-			name:               "no content type header",
-			method:             http.MethodPost,
-			path:               "/records",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a content type",
-		},
-		{
-			name:   "wrong content type header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "invalid",
-			},
-			path:               "/records",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		},
-		{
 			name:   "invalid json",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "application/external.dns.webhook+json;version=1",
+				"Content-Type": api.MediaTypeFormatAndVersion,
 			},
 			path:               "/records",
 			body:               "invalid",
 			expectedStatusCode: http.StatusBadRequest,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "error decoding changes: invalid character 'i' looking for beginning of value",
 		},
 		{
 			name:     "backend error",
 			hasError: fmt.Errorf("backend error"),
 			method:   http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "application/external.dns.webhook+json;version=1",
+				"Content-Type": api.MediaTypeFormatAndVersion,
 			},
 			path: "/records",
 			body: `
@@ -283,77 +251,14 @@ func TestAdjustEndpoints(t *testing.T) {
 			},
 		},
 		{
-			name:   "no content type header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Accept": "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/adjustendpoints",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a content type",
-		},
-		{
-			name:   "wrong content type header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "invalid",
-				"Accept":       "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/adjustendpoints",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the content type: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		},
-		{
-			name:   "no accept header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-			},
-			path:               "/adjustendpoints",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide an accept header",
-		},
-		{
-			name:   "wrong accept header",
-			method: http.MethodPost,
-			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "invalid",
-			},
-			path:               "/adjustendpoints",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
-		},
-		{
 			name:   "invalid json",
 			method: http.MethodPost,
 			headers: map[string]string{
-				"Content-Type": "application/external.dns.webhook+json;version=1",
-				"Accept":       "application/external.dns.webhook+json;version=1",
+				"Content-Type": api.MediaTypeFormatAndVersion,
 			},
 			path:               "/adjustendpoints",
 			body:               "invalid",
 			expectedStatusCode: http.StatusBadRequest,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "failed to decode request body: invalid character 'i' looking for beginning of value",
 		},
 	}
 	executeTestCases(t, testCases)
@@ -373,30 +278,6 @@ func TestNegotiate(t *testing.T) {
 				"Content-Type": "application/external.dns.webhook+json;version=1",
 			},
 			expectedBody: `{"include":["a.de"]}`,
-		},
-		{
-			name:               "no accept header",
-			method:             http.MethodGet,
-			headers:            map[string]string{},
-			path:               "/",
-			body:               "",
-			expectedStatusCode: http.StatusNotAcceptable,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide an accept header",
-		},
-		{
-			name:               "wrong accept header",
-			method:             http.MethodGet,
-			headers:            map[string]string{"Accept": "invalid"},
-			path:               "/",
-			body:               "",
-			expectedStatusCode: http.StatusUnsupportedMediaType,
-			expectedResponseHeaders: map[string]string{
-				"Content-Type": "text/plain",
-			},
-			expectedBody: "client must provide a valid versioned media type in the accept header: unsupported media type version: 'invalid'. Supported media types are: 'application/external.dns.webhook+json;version=1'",
 		},
 	}
 	executeTestCases(t, testCases)
