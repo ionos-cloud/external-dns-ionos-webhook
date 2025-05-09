@@ -137,6 +137,8 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 	return nil
 }
 
+var _ provider.Provider = (*Provider)(nil)
+
 // Provider extends base provider to work with paas dns rest API
 type Provider struct {
 	provider.BaseProvider
