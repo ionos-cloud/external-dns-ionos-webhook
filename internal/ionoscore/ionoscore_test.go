@@ -6,14 +6,12 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
-
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 
 	sdk "github.com/ionos-developer/dns-sdk-go"
 	"github.com/stretchr/testify/require"
@@ -26,16 +24,15 @@ type mockDnsService struct {
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	baseProvider := provider.NewBaseProvider(endpoint.NewDomainFilter([]string{"a.de."}))
-	p := NewProvider(baseProvider, &ionos.Configuration{DryRun: true})
+	domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
+	p := NewProvider(domainFilter, &ionos.Configuration{DryRun: true})
 	require.Equal(t, true, p.dryRun)
-	require.True(t, p.BaseProvider.GetDomainFilter().Match("a.de"))
-	require.False(t, p.BaseProvider.GetDomainFilter().Match("ab.de"))
+	require.True(t, p.GetDomainFilter().Match("a.de"))
+	require.False(t, p.GetDomainFilter().Match("ab.de"))
 	require.NotNilf(t, p.client, "client should not be nil")
-	baseProvider = provider.NewBaseProvider(endpoint.DomainFilter{})
-	p = NewProvider(baseProvider, &ionos.Configuration{})
+	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
 	require.Equal(t, false, p.dryRun)
-	require.True(t, p.BaseProvider.GetDomainFilter().Match("everything"))
+	require.True(t, p.GetDomainFilter().Match("everything"))
 	require.NotNilf(t, p.client, "client should not be nil")
 }
 

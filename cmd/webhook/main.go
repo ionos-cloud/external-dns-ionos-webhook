@@ -7,8 +7,8 @@ import (
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/dnsprovider"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/logging"
 	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/server"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/webhook"
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/external-dns/provider/webhook/api"
 )
 
 const banner = `
@@ -34,6 +34,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize DNS provider: %v", err)
 	}
-	srv := server.Init(config, webhook.New(provider))
+	srv := server.Init(config, api.WebhookServer{Provider: provider})
 	server.ShutdownGracefully(srv)
 }

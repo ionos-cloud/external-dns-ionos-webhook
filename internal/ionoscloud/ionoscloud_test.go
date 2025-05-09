@@ -6,15 +6,13 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/provider"
-
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/endpoint"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/pkg/plan"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/external-dns/endpoint"
+	"sigs.k8s.io/external-dns/plan"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -23,13 +21,12 @@ func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
 	domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
-	baseProvider := provider.NewBaseProvider(domainFilter)
-	p := NewProvider(baseProvider, &ionos.Configuration{})
-	require.True(t, true, p.BaseProvider.GetDomainFilter().Match("a.de."))
-	require.False(t, p.BaseProvider.GetDomainFilter().Match("b.de."))
+	p := NewProvider(domainFilter, &ionos.Configuration{})
+	require.True(t, true, p.GetDomainFilter().Match("a.de."))
+	require.False(t, p.GetDomainFilter().Match("b.de."))
 
-	p = NewProvider(provider.NewBaseProvider(endpoint.DomainFilter{}), &ionos.Configuration{})
-	require.True(t, true, p.BaseProvider.GetDomainFilter().Match("everything.com"))
+	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
+	require.True(t, true, p.GetDomainFilter().Match("everything.com"))
 }
 
 func TestRecords(t *testing.T) {
@@ -152,7 +149,7 @@ func TestRecords(t *testing.T) {
 				allRecords:  tc.givenRecords,
 				returnError: tc.givenError,
 			}
-			prov := &Provider{client: mockDnsClient, BaseProvider: *provider.NewBaseProvider(tc.givenDomainFilter)}
+			prov := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
 			endpoints, err := prov.Records(ctx)
 			if tc.expectedError != nil {
 				require.Error(t, err)
@@ -607,7 +604,7 @@ func TestApplyChanges(t *testing.T) {
 				zoneRecords: tc.givenZoneRecords,
 				returnError: tc.givenError,
 			}
-			prov := &Provider{client: mockDnsClient, BaseProvider: *provider.NewBaseProvider(tc.givenDomainFilter)}
+			prov := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
 			err := prov.ApplyChanges(ctx, tc.whenChanges)
 			if tc.expectedError != nil {
 				require.Error(t, err)
@@ -646,14 +643,14 @@ func TestAdjustEndpoints(t *testing.T) {
 }
 
 func TestReadMaxRecords(t *testing.T) {
-	prov := &Provider{client: pagingMockDNSService{t: t}}
+	prov := &Provider{domainFilter: endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
 	endpoints, err := prov.Records(context.Background())
 	require.NoError(t, err)
 	require.Len(t, endpoints, recordReadMaxCount)
 }
 
 func TestReadMaxZones(t *testing.T) {
-	prov := &Provider{client: pagingMockDNSService{t: t}}
+	prov := &Provider{domainFilter: endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
 	zt, err := prov.createZoneTree(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, zoneReadMaxCount, zt.GetZonesCount())
