@@ -3,11 +3,8 @@ package ionoscore
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 
 	log "github.com/sirupsen/logrus"
 
@@ -29,12 +26,10 @@ type Provider struct {
 var _ provider.Provider = (*Provider)(nil)
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configuration) (*Provider, error) {
-	client := createClient(configuration)
-
+func NewProvider(domanfilter endpoint.DomainFilter, client DnsService, isDryRun bool) (*Provider, error) {
 	prov := &Provider{
-		client:       DnsClient{client: client},
-		dryRun:       configuration.DryRun,
+		client:       client,
+		dryRun:       isDryRun,
 		domainFilter: domanfilter,
 	}
 	err := prov.setupZones(context.Background())
@@ -46,37 +41,6 @@ func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configu
 	}
 
 	return prov, nil
-}
-
-func createClient(config *ionos.Configuration) *sdk.APIClient {
-	maskAPIKey := func() string {
-		if len(config.APIKey) <= 3 {
-			return strings.Repeat("*", len(config.APIKey))
-		}
-		return fmt.Sprintf("%s%s", config.APIKey[:3], strings.Repeat("*", len(config.APIKey)-3))
-	}
-	log.Infof(
-		"Creating ionos core DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', API key: '%v', Debug: '%v'",
-		config.APIEndpointURL,
-		config.AuthHeader,
-		maskAPIKey(),
-		config.Debug,
-	)
-	if config.DryRun {
-		log.Warnf("*** Dry run is enabled, no changes will be made to ionos core DNS ***")
-	}
-
-	sdkConfig := sdk.NewConfiguration()
-	if config.APIEndpointURL != "" {
-		sdkConfig.Servers[0].URL = config.APIEndpointURL
-	}
-	sdkConfig.AddDefaultHeader(config.AuthHeader, config.APIKey)
-	sdkConfig.UserAgent = fmt.Sprintf(
-		"external-dns os %s arch %s",
-		runtime.GOOS, runtime.GOARCH)
-	sdkConfig.Debug = config.Debug
-
-	return sdk.NewAPIClient(sdkConfig)
 }
 
 // Records returns the list of resource records in all zones.

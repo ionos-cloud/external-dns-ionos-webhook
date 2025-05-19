@@ -2,7 +2,6 @@ package ionoscloud
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -51,10 +50,9 @@ type Provider struct {
 }
 
 // NewProvider returns an instance of new provider
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) (*Provider, error) {
-	client := createClient(configuration)
+func NewProvider(domainFilter endpoint.DomainFilter, client DNSService) (*Provider, error) {
 	prov := &Provider{
-		client:       &DNSClient{client: client, dryRun: configuration.DryRun},
+		client:       client,
 		domainFilter: domainFilter,
 	}
 	err := prov.setupZones(context.Background())
@@ -65,34 +63,6 @@ func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Config
 		return nil, fmt.Errorf("no zones matching domain filter found")
 	}
 	return prov, nil
-}
-
-func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
-	jwtString := func() string {
-		split := strings.Split(ionosConfig.APIKey, ".")
-		if len(split) == 3 {
-			headerBytes, _ := base64.RawStdEncoding.DecodeString(split[0])
-			payloadBytes, _ := base64.RawStdEncoding.DecodeString(split[1])
-			return fmt.Sprintf("JWT-header: %s, JWT-payload: %s", headerBytes, payloadBytes)
-		}
-		return ""
-	}
-	log.Infof(
-		"Creating ionos cloud DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', Debug: '%v'",
-		ionosConfig.APIEndpointURL,
-		ionosConfig.AuthHeader,
-		ionosConfig.Debug,
-	)
-	log.Debugf("JWT: %s", jwtString())
-
-	if ionosConfig.DryRun {
-		log.Warnf("*** Dry run is enabled, no changes will be made to ionos cloud DNS ***")
-	}
-
-	sdkConfig := sdk.NewConfiguration("", "", ionosConfig.APIKey, ionosConfig.APIEndpointURL)
-	sdkConfig.Debug = ionosConfig.Debug
-	apiClient := sdk.NewAPIClient(sdkConfig)
-	return apiClient
 }
 
 func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error) {

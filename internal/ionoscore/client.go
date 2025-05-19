@@ -2,9 +2,20 @@ package ionoscore
 
 import (
 	"context"
+	"fmt"
+	"runtime"
+	"strings"
 
 	sdk "github.com/ionos-developer/dns-sdk-go"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
+
+// DnsClient client of the dns api
+type DnsClient struct {
+	client *sdk.APIClient
+}
 
 // DnsService interface to the dns backend, also needed for creating mocks in tests
 type DnsService interface {
@@ -14,9 +25,35 @@ type DnsService interface {
 	DeleteRecord(ctx context.Context, zoneId string, recordId string) error
 }
 
-// DnsClient client of the dns api
-type DnsClient struct {
-	client *sdk.APIClient
+func IONOSCoreClient(config *ionos.Configuration) DnsService {
+	maskAPIKey := func() string {
+		if len(config.APIKey) <= 3 {
+			return strings.Repeat("*", len(config.APIKey))
+		}
+		return fmt.Sprintf("%s%s", config.APIKey[:3], strings.Repeat("*", len(config.APIKey)-3))
+	}
+	log.Infof(
+		"Creating ionos core DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', API key: '%v', Debug: '%v'",
+		config.APIEndpointURL,
+		config.AuthHeader,
+		maskAPIKey(),
+		config.Debug,
+	)
+	if config.DryRun {
+		log.Warnf("*** Dry run is enabled, no changes will be made to ionos core DNS ***")
+	}
+
+	sdkConfig := sdk.NewConfiguration()
+	if config.APIEndpointURL != "" {
+		sdkConfig.Servers[0].URL = config.APIEndpointURL
+	}
+	sdkConfig.AddDefaultHeader(config.AuthHeader, config.APIKey)
+	sdkConfig.UserAgent = fmt.Sprintf(
+		"external-dns os %s arch %s",
+		runtime.GOOS, runtime.GOARCH)
+	sdkConfig.Debug = config.Debug
+
+	return DnsClient{sdk.NewAPIClient(sdkConfig)}
 }
 
 // GetZones client get zones method

@@ -2,12 +2,17 @@ package ionoscloud
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"strings"
 
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
 
-type DNSClient struct {
+type DnsClient struct {
 	client *sdk.APIClient
 	dryRun bool
 }
@@ -20,8 +25,35 @@ type DNSService interface {
 	CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error
 }
 
+func IONOSCloudClient(ionosConfig *ionos.Configuration) DNSService {
+	jwtString := func() string {
+		split := strings.Split(ionosConfig.APIKey, ".")
+		if len(split) == 3 {
+			headerBytes, _ := base64.RawStdEncoding.DecodeString(split[0])
+			payloadBytes, _ := base64.RawStdEncoding.DecodeString(split[1])
+			return fmt.Sprintf("JWT-header: %s, JWT-payload: %s", headerBytes, payloadBytes)
+		}
+		return ""
+	}
+	log.Infof(
+		"Creating ionos cloud DNS client with parameters: API Endpoint URL: '%v', Auth header: '%v', Debug: '%v'",
+		ionosConfig.APIEndpointURL,
+		ionosConfig.AuthHeader,
+		ionosConfig.Debug,
+	)
+	log.Debugf("JWT: %s", jwtString())
+
+	if ionosConfig.DryRun {
+		log.Warnf("*** Dry run is enabled, no changes will be made to ionos cloud DNS ***")
+	}
+
+	sdkConfig := sdk.NewConfiguration("", "", ionosConfig.APIKey, ionosConfig.APIEndpointURL)
+	sdkConfig.Debug = ionosConfig.Debug
+	return &DnsClient{sdk.NewAPIClient(sdkConfig), ionosConfig.DryRun}
+}
+
 // GetZoneRecords retrieve all records for a zone https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
-func (c *DNSClient) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
+func (c *DnsClient) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
 	log.Debugf("get all records for zone '%s' with offset %d ...", zoneId, offset)
 	records, _, err := c.client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).Limit(recordReadLimit).Offset(offset).
 		FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
@@ -37,7 +69,7 @@ func (c *DNSClient) GetZoneRecords(ctx context.Context, offset int32, zoneId str
 	return records, err
 }
 
-func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error) {
+func (c *DnsClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error) {
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, name)
 	logger.Debug("get records from zone by name ...")
 	records, _, err := c.client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).FilterName(name).
@@ -55,7 +87,7 @@ func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name 
 }
 
 // GetZones client get zones method
-func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
+func (c *DnsClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
 	log.Debug("get all zones ...")
 	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
@@ -71,7 +103,7 @@ func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadLis
 }
 
 // CreateRecord client create record method
-func (c *DNSClient) CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error {
+func (c *DnsClient) CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error {
 	recordProps := record.GetProperties()
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, *recordProps.GetName()).
 		WithField(logFieldRecordType, *recordProps.GetType()).WithField(logFieldRecordContent, *recordProps.GetContent()).
@@ -91,7 +123,7 @@ func (c *DNSClient) CreateRecord(ctx context.Context, zoneId string, record sdk.
 }
 
 // DeleteRecord client delete record method
-func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId string) error {
+func (c *DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId string) error {
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordID, recordId)
 	logger.Debugf("deleting record: %v ...", recordId)
 	if !c.dryRun {

@@ -6,13 +6,14 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -21,11 +22,13 @@ func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
 	domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
-	p := NewProvider(domainFilter, &ionos.Configuration{})
+	p, err := NewProvider(domainFilter, &ionos.Configuration{})
+	require.NoError(t, err)
 	require.True(t, true, p.GetDomainFilter().Match("a.de."))
 	require.False(t, p.GetDomainFilter().Match("b.de."))
 
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
+	p, err = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
+	require.NoError(t, err)
 	require.True(t, true, p.GetDomainFilter().Match("everything.com"))
 }
 
@@ -145,8 +148,7 @@ func TestRecords(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDnsClient := &mockDNSClient{
-				allRecords:  tc.givenRecords,
+			mockDnsClient := &mockDNSClient{ // TODO fill with zone records
 				returnError: tc.givenError,
 			}
 			prov := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
@@ -599,7 +601,6 @@ func TestApplyChanges(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDnsClient := &mockDNSClient{
-				allRecords:  tc.givenRecords,
 				allZones:    tc.givenZones,
 				zoneRecords: tc.givenZoneRecords,
 				returnError: tc.givenError,
@@ -651,26 +652,22 @@ func TestReadMaxRecords(t *testing.T) {
 
 func TestReadMaxZones(t *testing.T) {
 	prov := &Provider{domainFilter: endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
-	zt, err := prov.createZoneTree(context.Background())
+	err := prov.setupZones(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, zoneReadMaxCount, zt.GetZonesCount())
+	require.Equal(t, zoneReadMaxCount, prov.zoneTree.GetZonesCount())
 }
 
 type pagingMockDNSService struct {
 	t *testing.T
 }
 
-func (p pagingMockDNSService) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
+func (p pagingMockDNSService) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
 	require.Equal(p.t, 0, int(offset)%recordReadLimit)
 	records := createRecordReadList(recordReadLimit, int(offset), 0, func(i int) (string, string, string, int32, string) {
 		recordName := fmt.Sprintf("a%d", int(offset)+i)
 		return recordName, recordName + ".de", "A", 300, "1.1.1.1"
 	})
 	return records, nil
-}
-
-func (pagingMockDNSService) GetZoneRecords(ctx context.Context, zoneId string) (sdk.RecordReadList, error) {
-	panic("implement me")
 }
 
 func (pagingMockDNSService) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error) {
@@ -700,19 +697,13 @@ func (pagingMockDNSService) CreateRecord(ctx context.Context, zoneId string, rec
 
 type mockDNSClient struct {
 	returnError    error
-	allRecords     sdk.RecordReadList
 	zoneRecords    map[string]sdk.RecordReadList
 	allZones       sdk.ZoneReadList
 	createdRecords map[string][]sdk.RecordCreate // zoneId -> recordCreates
 	deletedRecords map[string][]string           // zoneId -> recordIds
 }
 
-func (c *mockDNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
-	log.Debugf("GetAllRecords called")
-	return c.allRecords, c.returnError
-}
-
-func (c *mockDNSClient) GetZoneRecords(ctx context.Context, zoneId string) (sdk.RecordReadList, error) {
+func (c *mockDNSClient) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
 	log.Debugf("GetZoneRecords called with zoneId %s", zoneId)
 	return c.zoneRecords[zoneId], c.returnError
 }

@@ -33,12 +33,12 @@ func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configura
 
 var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) (provider.Provider, error) {
 	setDefaults("https://api.hosting.ionos.com/dns", "X-API-Key", ionosConfig)
-	return ionoscore.NewProvider(domainFilter, ionosConfig)
+	return ionoscoreProvider(domainFilter, ionosConfig)
 }
 
 var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) (provider.Provider, error) {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
-	return ionoscloud.NewProvider(domainFilter, ionosConfig)
+	return ionoscloudProvider(domainFilter, ionosConfig)
 }
 
 func Init(config configuration.Config) (provider.Provider, error) {
@@ -96,4 +96,22 @@ func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
 		return IonosCloudProviderFactory
 	}
 	return IonosCoreProviderFactory
+}
+
+func ionoscoreProvider(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) (provider.Provider, error) {
+	client := ionoscore.IONOSCoreClient(ionosConfig)
+	prov, err := ionoscore.NewProvider(domainFilter, client, ionosConfig.DryRun)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create IONOS Core provider: %w", err)
+	}
+	return prov, nil
+}
+
+func ionoscloudProvider(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) (provider.Provider, error) {
+	client := ionoscloud.IONOSCloudClient(ionosConfig)
+	prov, err := ionoscloud.NewProvider(domainFilter, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create IONOS Cloud provider: %w", err)
+	}
+	return prov, nil
 }
