@@ -276,7 +276,7 @@ func (p *Provider) setupZones(ctx context.Context) error {
 	for _, zoneRead := range allZones {
 		zoneName := *zoneRead.GetProperties().GetZoneName()
 		if p.GetDomainFilter().Match(zoneName) {
-			log.Debugf("zone %s matches domain filter", zoneName)
+			log.Debugf("zone '%s' matches domain filter", zoneName)
 			zoneId := *zoneRead.GetProperties().GetZoneName()
 			idToName[zoneId] = zoneName
 			zt.AddZone(zoneRead, zoneName)
