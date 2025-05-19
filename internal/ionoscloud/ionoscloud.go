@@ -7,12 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	sdk "github.com/ionos-cloud/sdk-go-dns"
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
 
 const (

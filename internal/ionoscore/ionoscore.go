@@ -23,49 +23,13 @@ type Provider struct {
 	client       DnsService
 	dryRun       bool
 	domainFilter endpoint.DomainFilterInterface
-}
-
-// DnsService interface to the dns backend, also needed for creating mocks in tests
-type DnsService interface {
-	GetZones(ctx context.Context) ([]sdk.Zone, error)
-	GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error)
-	CreateRecords(ctx context.Context, zoneId string, records []sdk.Record) error
-	DeleteRecord(ctx context.Context, zoneId string, recordId string) error
-}
-
-// DnsClient client of the dns api
-type DnsClient struct {
-	client *sdk.APIClient
-}
-
-// GetZones client get zones method
-func (c DnsClient) GetZones(ctx context.Context) ([]sdk.Zone, error) {
-	zones, _, err := c.client.ZonesApi.GetZones(ctx).Execute()
-	return zones, err
-}
-
-// GetZone client get zone method
-func (c DnsClient) GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error) {
-	zoneInfo, _, err := c.client.ZonesApi.GetZone(ctx, zoneId).Execute()
-	return zoneInfo, err
-}
-
-// CreateRecords client create records method
-func (c DnsClient) CreateRecords(ctx context.Context, zoneId string, records []sdk.Record) error {
-	_, _, err := c.client.RecordsApi.CreateRecords(ctx, zoneId).Record(records).Execute()
-	return err
-}
-
-// DeleteRecord client delete record method
-func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId string) error {
-	_, err := c.client.RecordsApi.DeleteRecord(ctx, zoneId, recordId).Execute()
-	return err
+	zoneIdToName map[string]string
 }
 
 var _ provider.Provider = (*Provider)(nil)
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
+func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configuration) (*Provider, error) {
 	client := createClient(configuration)
 
 	prov := &Provider{
@@ -73,8 +37,15 @@ func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configu
 		dryRun:       configuration.DryRun,
 		domainFilter: domanfilter,
 	}
+	err := prov.setupZones(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup zones: %w", err)
+	}
+	if len(prov.zoneIdToName) == 0 {
+		return nil, fmt.Errorf("no zones matching domain filter found")
+	}
 
-	return prov
+	return prov, nil
 }
 
 func createClient(config *ionos.Configuration) *sdk.APIClient {
@@ -110,14 +81,9 @@ func createClient(config *ionos.Configuration) *sdk.APIClient {
 
 // Records returns the list of resource records in all zones.
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
-	zones, err := p.getZones(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var endpoints []*endpoint.Endpoint
 
-	for zoneId := range zones {
+	for zoneId := range p.zoneIdToName {
 		zoneInfo, err := p.client.GetZone(ctx, zoneId)
 		if err != nil {
 			log.Warnf("Failed to fetch zoneId %v: %v", zoneId, err)
@@ -144,11 +110,6 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 
 // ApplyChanges applies a given set of changes.
 func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
-	zones, err := p.getZones(ctx)
-	if err != nil {
-		return err
-	}
-
 	toCreate := make([]*endpoint.Endpoint, len(changes.Create))
 	copy(toCreate, changes.Create)
 
@@ -162,10 +123,10 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		}
 	}
 
-	zonesToDeleteFrom := p.fetchZonesToDeleteFrom(ctx, toDelete, zones)
+	zonesToDeleteFrom := p.fetchZonesToDeleteFrom(ctx, toDelete)
 
 	for _, e := range toDelete {
-		zoneId := getHostZoneID(e.DNSName, zones)
+		zoneId := getHostZoneID(e.DNSName, p.zoneIdToName)
 		if zoneId == "" {
 			log.Warnf("No zone to delete %v from", e)
 			continue
@@ -179,17 +140,17 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	}
 
 	for _, e := range toCreate {
-		p.createEndpoint(ctx, e, zones)
+		p.createEndpoint(ctx, e, p.zoneIdToName)
 	}
 
 	return nil
 }
 
 // fetchZonesToDeleteFrom fetches all the zones that will be performed deletions upon.
-func (p *Provider) fetchZonesToDeleteFrom(ctx context.Context, toDelete []*endpoint.Endpoint, zones map[string]string) map[string]*sdk.CustomerZone {
+func (p *Provider) fetchZonesToDeleteFrom(ctx context.Context, toDelete []*endpoint.Endpoint) map[string]*sdk.CustomerZone {
 	zonesIdsToDeleteFrom := map[string]bool{}
 	for _, e := range toDelete {
-		zoneId := getHostZoneID(e.DNSName, zones)
+		zoneId := getHostZoneID(e.DNSName, p.zoneIdToName)
 		if zoneId != "" {
 			zonesIdsToDeleteFrom[zoneId] = true
 		}
@@ -279,22 +240,23 @@ func recordToEndpoint(r sdk.RecordResponse) *endpoint.Endpoint {
 	return endpoint.NewEndpointWithTTL(*r.Name, getType(r), endpoint.TTL(*r.Ttl), *r.Content)
 }
 
-// getZones returns a ZoneID -> ZoneName mapping for zones that match domain filter.
-func (p *Provider) getZones(ctx context.Context) (map[string]string, error) {
+// setupZones returns a ZoneID -> ZoneName mapping for zones that match domain filter.
+func (p *Provider) setupZones(ctx context.Context) error {
 	zones, err := p.client.GetZones(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	result := map[string]string{}
+	mapping := map[string]string{}
 
 	for _, zone := range zones {
 		if p.BaseProvider.GetDomainFilter().Match(*zone.Name) {
-			result[*zone.Id] = *zone.Name
+			mapping[*zone.Id] = *zone.Name
 		}
 	}
 
-	return result, nil
+	p.zoneIdToName = mapping
+	return nil
 }
 
 // getHostZoneID finds the best suitable DNS zone for the hostname.
