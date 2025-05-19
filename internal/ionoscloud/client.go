@@ -54,17 +54,17 @@ func IONOSCloudClient(ionosConfig *ionos.Configuration) DNSService {
 
 // GetZoneRecords retrieve all records for a zone https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
 func (c *DnsClient) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
-	log.Debugf("get all records for zone '%s' with offset %d ...", zoneId, offset)
+	log.Debugf("get all records for zone with id '%s' with offset %d ...", zoneId, offset)
 	records, _, err := c.client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).Limit(recordReadLimit).Offset(offset).
 		FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
-		log.Errorf("failed to get records for zone '%s': %v", zoneId, err)
+		log.Errorf("failed to get records for zone with id '%s': %v", zoneId, err)
 		return records, err
 	}
 	if records.HasItems() {
-		log.Debugf("found %d records for zone '%s'", len(*records.Items), zoneId)
+		log.Debugf("found %d records for zone with id '%s'", len(*records.Items), zoneId)
 	} else {
-		log.Debugf("no records found for zone '%s'", zoneId)
+		log.Debugf("no records found for zone with id '%s'", zoneId)
 	}
 	return records, err
 }

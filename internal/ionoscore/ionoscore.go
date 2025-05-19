@@ -50,7 +50,7 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	for zoneId := range p.zoneIdToName {
 		zoneInfo, err := p.client.GetZone(ctx, zoneId)
 		if err != nil {
-			log.Warnf("Failed to fetch zoneId %v: %v", zoneId, err)
+			log.Errorf("Failed to fetch zoneId %v: %v", zoneId, err)
 			continue
 		}
 
@@ -148,7 +148,7 @@ func (p *Provider) deleteEndpoint(ctx context.Context, e *endpoint.Endpoint, zon
 		}
 
 		if recordId == "" {
-			log.Warnf("Record %v %v %v not found in zone", e.DNSName, e.RecordType, target)
+			log.Errorf("Record %v %v %v not found in zone", e.DNSName, e.RecordType, target)
 			continue
 		}
 

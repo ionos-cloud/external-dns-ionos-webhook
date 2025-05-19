@@ -2,6 +2,7 @@ package ionoscloud
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -16,64 +17,89 @@ import (
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
 
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var (
+	letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	testErr     = errors.New("test error")
+)
 
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	t.Setenv("IONOS_API_KEY", "1")
 	domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
-	p, err := NewProvider(domainFilter, &ionos.Configuration{})
-	require.NoError(t, err)
-	require.True(t, true, p.GetDomainFilter().Match("a.de."))
-	require.False(t, p.GetDomainFilter().Match("b.de."))
+	deZoneClient := &mockDNSClient{
+		allZones: createZoneReadList(1, func(i int) (string, string) {
+			return "deZoneId", "a.de"
+		}),
+	}
+	t.Run("success, specific domain filter ", func(t *testing.T) {
+		p, err := NewProvider(domainFilter, deZoneClient)
+		require.NoError(t, err)
+		require.True(t, true, p.GetDomainFilter().Match("a.de."))
+		require.False(t, p.GetDomainFilter().Match("b.de."))
+	})
 
-	p, err = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
-	require.NoError(t, err)
-	require.True(t, true, p.GetDomainFilter().Match("everything.com"))
+	t.Run("success, no filtering", func(t *testing.T) {
+		p, err := NewProvider(endpoint.DomainFilter{}, deZoneClient)
+		require.NoError(t, err)
+		require.True(t, true, p.GetDomainFilter().Match("everything.com"))
+	})
+
+	t.Run("error, no zones matching domain filter were found", func(t *testing.T) {
+		noZonesClient := &mockDNSClient{
+			allZones: createZoneReadList(0, nil),
+		}
+		p, err := NewProvider(domainFilter, noZonesClient)
+		require.Error(t, err)
+		require.Nil(t, p)
+	})
 }
 
 func TestRecords(t *testing.T) {
+	zoneIDa, zoneIDb := "zoneIDa", "zoneIDb"
 	log.SetLevel(log.DebugLevel)
 	ctx := context.Background()
 	testCases := []struct {
-		name              string
-		givenRecords      sdk.RecordReadList
-		givenError        error
-		givenDomainFilter endpoint.DomainFilter
-		expectedEndpoints []*endpoint.Endpoint
-		expectedError     error
+		name               string
+		givenRecordsByZone map[string]sdk.RecordReadList
+		givenError         error
+		expectedEndpoints  []*endpoint.Endpoint
+		expectedError      error
 	}{
 		{
-			name:              "no records",
-			givenRecords:      sdk.RecordReadList{},
-			expectedEndpoints: []*endpoint.Endpoint{},
+			name:               "no records",
+			givenRecordsByZone: map[string]sdk.RecordReadList{},
+			expectedEndpoints:  []*endpoint.Endpoint{},
 		},
 		{
-			name:              "error reading records",
-			givenRecords:      sdk.RecordReadList{},
-			givenError:        fmt.Errorf("test error"),
-			expectedEndpoints: []*endpoint.Endpoint{},
-			expectedError:     fmt.Errorf("test error"),
+			name:               "error reading records",
+			givenRecordsByZone: map[string]sdk.RecordReadList{},
+			givenError:         testErr,
+			expectedEndpoints:  []*endpoint.Endpoint{},
+			expectedError:      testErr,
 		},
 		{
 			name: "multiple A records",
-			givenRecords: createRecordReadList(3, 0, 0, func(i int) (string, string, string, int32, string) {
-				recordName := "a" + fmt.Sprintf("%d", i+1)
-				fqdn := recordName + ".a.de"
-				return recordName, fqdn, "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
-			}),
+			givenRecordsByZone: map[string]sdk.RecordReadList{
+				zoneIDa: createZoneRecordsReadList(3, 0, 0, func(i int) (string, string, string, int32, string) {
+					recordName := "a" + fmt.Sprintf("%d", i+1)
+					fqdn := recordName + ".a.de"
+					return recordName, fqdn, "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
+				}),
+			},
 			expectedEndpoints: createEndpointSlice(3, func(i int) (string, string, endpoint.TTL, []string) {
 				return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", endpoint.TTL((i + 1) * 100), []string{fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)}
 			}),
 		},
 		{
 			name: "records of Type A and SRV",
-			givenRecords: createRecordReadList(2, 0, 333, func(i int) (string, string, string, int32, string) {
-				if i == 0 {
+			givenRecordsByZone: map[string]sdk.RecordReadList{
+				zoneIDa: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", 100, "1.1.1.1"
-				}
-				return "b", "b.de", "SRV", 200, "server.example.com"
-			}),
+				}),
+				zoneIDb: createZoneRecordsReadList(1, 0, 333, func(i int) (string, string, string, int32, string) {
+					return "b", "b.de", "SRV", 200, "server.example.com"
+				}),
+			},
 			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
 				if i == 0 {
 					return "a.de", "A", 100, []string{"1.1.1.1"}
@@ -83,12 +109,14 @@ func TestRecords(t *testing.T) {
 		},
 		{
 			name: "records of Type A and MX",
-			givenRecords: createRecordReadList(2, 0, 333, func(i int) (string, string, string, int32, string) {
-				if i == 0 {
+			givenRecordsByZone: map[string]sdk.RecordReadList{
+				zoneIDa: createZoneRecordsReadList(1, 0, 333, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", 100, "1.1.1.1"
-				}
-				return "b", "b.de", "MX", 200, "server.example.com"
-			}),
+				}),
+				zoneIDb: createZoneRecordsReadList(1, 0, 333, func(i int) (string, string, string, int32, string) {
+					return "b", "b.de", "MX", 200, "server.example.com"
+				}),
+			},
 			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
 				if i == 0 {
 					return "a.de", "A", 100, []string{"1.1.1.1"}
@@ -98,12 +126,14 @@ func TestRecords(t *testing.T) {
 		},
 		{
 			name: "records of Type A and URI",
-			givenRecords: createRecordReadList(2, 0, 333, func(i int) (string, string, string, int32, string) {
-				if i == 0 {
+			givenRecordsByZone: map[string]sdk.RecordReadList{
+				zoneIDa: createZoneRecordsReadList(1, 0, 333, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", 100, "1.1.1.1"
-				}
-				return "b", "b.de", "URI", 200, "333 333 server.example.com"
-			}),
+				}),
+				zoneIDb: createZoneRecordsReadList(1, 0, 333, func(i int) (string, string, string, int32, string) {
+					return "b", "b.de", "URI", 200, "333 333 server.example.com"
+				}),
+			},
 			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
 				if i == 0 {
 					return "a.de", "A", 100, []string{"1.1.1.1"}
@@ -112,31 +142,37 @@ func TestRecords(t *testing.T) {
 			}),
 		},
 		{
-			name: "multiple records filtered by domain",
-			givenRecords: createRecordReadList(6, 0, 0, func(i int) (string, string, string, int32, string) {
-				if i < 3 {
+			name: "multiple records",
+			givenRecordsByZone: map[string]sdk.RecordReadList{
+				zoneIDa: createZoneRecordsReadList(3, 0, 0, func(i int) (string, string, string, int32, string) {
 					recordName := "a" + fmt.Sprintf("%d", i+1)
 					fqdn := recordName + ".a.de"
 					return recordName, fqdn, "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
+				}),
+				zoneIDb: createZoneRecordsReadList(3, 3, 0, func(i int) (string, string, string, int32, string) {
+					recordName := "b" + fmt.Sprintf("%d", i+4)
+					fqdn := recordName + ".b.de"
+					return recordName, fqdn, "A", int32((i + 4) * 100), fmt.Sprintf("%d.%d.%d.%d", i+4, i+4, i+4, i+4)
+				}),
+			},
+			expectedEndpoints: createEndpointSlice(6, func(i int) (string, string, endpoint.TTL, []string) {
+				if i < 3 {
+					return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", endpoint.TTL((i + 1) * 100), []string{fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)}
 				}
-				recordName := "b" + fmt.Sprintf("%d", i+1)
-				fqdn := recordName + ".b.de"
-				return recordName, fqdn, "A", int32((i + 1) * 100), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
-			}),
-			givenDomainFilter: endpoint.NewDomainFilter([]string{"a.de"}),
-			expectedEndpoints: createEndpointSlice(3, func(i int) (string, string, endpoint.TTL, []string) {
-				return "a" + fmt.Sprintf("%d", i+1) + ".a.de", "A", endpoint.TTL((i + 1) * 100), []string{fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)}
+				return "b" + fmt.Sprintf("%d", i+1) + ".b.de", "A", endpoint.TTL((i + 1) * 100), []string{fmt.Sprintf("%d.%d.%d.%d", i+1,
+					i+1, i+1, i+1)}
 			}),
 		},
 		{
 			name: "records mapped to same endpoint",
-			givenRecords: createRecordReadList(3, 0, 0, func(i int) (string, string, string, int32, string) {
-				if i < 2 {
+			givenRecordsByZone: map[string]sdk.RecordReadList{
+				zoneIDa: createZoneRecordsReadList(2, 0, 0, func(i int) (string, string, string, int32, string) {
 					return "", "a.de", "A", int32(300), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
-				} else {
-					return "", "c.de", "A", int32(300), fmt.Sprintf("%d.%d.%d.%d", i+1, i+1, i+1, i+1)
-				}
-			}),
+				}),
+				zoneIDb: createZoneRecordsReadList(1, 2, 0, func(i int) (string, string, string, int32, string) {
+					return "", "c.de", "A", int32(300), fmt.Sprintf("%d.%d.%d.%d", i+3, i+3, i+3, i+3)
+				}),
+			},
 			expectedEndpoints: createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
 				if i == 0 {
 					return "a.de", "A", endpoint.TTL(300), []string{"1.1.1.1", "2.2.2.2"}
@@ -148,14 +184,20 @@ func TestRecords(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDnsClient := &mockDNSClient{ // TODO fill with zone records
+			mockDnsClient := &mockDNSClient{
 				returnError: tc.givenError,
+				zoneRecords: tc.givenRecordsByZone,
 			}
-			prov := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
+			prov := &Provider{
+				client: mockDnsClient,
+				zoneIdToName: map[string]string{
+					zoneIDa: "a.de",
+					zoneIDb: "b.de",
+				},
+			}
 			endpoints, err := prov.Records(ctx)
 			if tc.expectedError != nil {
-				require.Error(t, err)
-				require.Equal(t, tc.expectedError, err)
+				require.ErrorIs(t, err, tc.expectedError)
 				return
 			}
 			require.NoError(t, err)
@@ -168,16 +210,27 @@ func TestRecords(t *testing.T) {
 func TestApplyChanges(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	log.SetReportCaller(true)
-	deZoneId := "deZoneId"
-	comZoneId := "comZoneId"
+	deZoneId, comZoneId := "deZoneId", "comZoneId"
+	// TODO move zone tree creation somewhere else
+	zt := ionos.NewZoneTree[sdk.ZoneRead]()
+	zt.AddZone(sdk.ZoneRead{
+		Id: &deZoneId,
+		Properties: &sdk.Zone{
+			ZoneName: ptr("a.de"),
+		},
+	}, "a.de")
+	zt.AddZone(sdk.ZoneRead{
+		Id: &comZoneId,
+		Properties: &sdk.Zone{
+			ZoneName: ptr("a.com"),
+		},
+	}, "a.com")
+
 	ctx := context.Background()
 	testCases := []struct {
 		name                   string
-		givenRecords           sdk.RecordReadList
-		givenZones             sdk.ZoneReadList
 		givenZoneRecords       map[string]sdk.RecordReadList
 		givenError             error
-		givenDomainFilter      endpoint.DomainFilter
 		whenChanges            *plan.Changes
 		expectedError          error
 		expectedRecordsCreated map[string][]sdk.RecordCreate
@@ -185,27 +238,25 @@ func TestApplyChanges(t *testing.T) {
 	}{
 		{
 			name:                   "no changes",
-			givenZones:             createZoneReadList(0, nil),
 			givenZoneRecords:       map[string]sdk.RecordReadList{},
 			whenChanges:            &plan.Changes{},
 			expectedRecordsCreated: nil,
 			expectedRecordsDeleted: nil,
 		},
 		{
-			name:             "error applying changes",
-			givenZones:       createZoneReadList(0, nil),
-			givenZoneRecords: map[string]sdk.RecordReadList{},
-			givenError:       fmt.Errorf("test error"),
-			whenChanges:      &plan.Changes{},
-			expectedError:    fmt.Errorf("test error"),
+			name: "error applying changes",
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+				}),
+			},
+			givenError:    testErr,
+			expectedError: testErr,
 		},
 		{
 			name: "create one record in a blank zone",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -221,11 +272,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a SRV record in a blank zone",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -241,11 +289,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a SRV record with no priority field in target",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -261,11 +306,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a SRV record with wrong priority syntax in target",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -281,11 +323,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a MX record in a blank zone",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -301,11 +340,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a MX record with no priority field in target",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -321,11 +357,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a MX record with wrong priority syntax in target",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -341,11 +374,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a URI record in a blank zone",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -361,11 +391,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a URI record with wrong priority syntax in target",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -381,16 +408,12 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create a record which is filtered out from the domain filter",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "a.de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
-			givenDomainFilter: endpoint.NewDomainFilter([]string{"b.de"}),
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+					return "d.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
 				}),
 			},
 			expectedRecordsCreated: nil,
@@ -398,11 +421,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "create 2 records from one endpoint in a blank zone",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -422,11 +442,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "delete the only record in a zone",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+				deZoneId: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", int32(300), "1.2.3.4"
 				}),
 			},
@@ -441,40 +458,29 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "delete a record which is filtered out from the domain filter",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
-					return "a", "a.de", "A", int32(300), "1.2.3.4"
+				deZoneId: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+					return "d", "d.de", "A", int32(300), "1.2.3.4"
 				}),
 			},
-			givenDomainFilter: endpoint.NewDomainFilter([]string{"b.de"}),
 			whenChanges: &plan.Changes{
 				Delete: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+					return "d.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
 				}),
 			},
 			expectedRecordsDeleted: nil,
 		},
 		{
 			name: "delete multiple records, in different zones",
-			givenZones: createZoneReadList(2, func(i int) (string, string) {
-				if i == 0 {
-					return deZoneId, "de"
-				} else {
-					return comZoneId, "com"
-				}
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(2, 0, 0, func(n int) (string, string, string, int32, string) {
+				deZoneId: createZoneRecordsReadList(2, 0, 0, func(n int) (string, string, string, int32, string) {
 					if n == 0 {
 						return "a", "a.de", "A", 300, "1.2.3.4"
 					} else {
 						return "a", "a.de", "A", 300, "5.6.7.8"
 					}
 				}),
-				comZoneId: createRecordReadList(1, 2, 0, func(n int) (string, string, string, int32, string) {
+				comZoneId: createZoneRecordsReadList(1, 2, 0, func(n int) (string, string, string, int32, string) {
 					return "a", "a.com", "A", 300, "11.22.33.44"
 				}),
 			},
@@ -494,11 +500,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "delete record which is not in the zone, deletes nothing",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(0, 0, 0, nil),
+				deZoneId: createZoneRecordsReadList(0, 0, 0, nil),
 			},
 			whenChanges: &plan.Changes{
 				Delete: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
@@ -509,11 +512,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "delete one record from targets part of endpoint",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+				deZoneId: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", 300, "1.2.3.4"
 				}),
 			},
@@ -528,11 +528,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "update single record",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+				deZoneId: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", 300, "1.2.3.4"
 				}),
 			},
@@ -555,22 +552,12 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "update a record which is filtered out by domain filter, does nothing",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
-			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
-					return "a", "a.de", "A", 300, "1.2.3.4"
-				}),
-			},
-			givenDomainFilter: endpoint.NewDomainFilter([]string{"b.de"}),
-
 			whenChanges: &plan.Changes{
 				UpdateOld: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
+					return "d.de", "A", endpoint.TTL(300), []string{"1.2.3.4"}
 				}),
 				UpdateNew: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
-					return "a.de", "A", endpoint.TTL(300), []string{"5.6.7.8"}
+					return "d.de", "A", endpoint.TTL(300), []string{"5.6.7.8"}
 				}),
 			},
 			expectedRecordsDeleted: nil,
@@ -578,11 +565,8 @@ func TestApplyChanges(t *testing.T) {
 		},
 		{
 			name: "update when old and new endpoint are the same, does nothing",
-			givenZones: createZoneReadList(1, func(i int) (string, string) {
-				return deZoneId, "de"
-			}),
 			givenZoneRecords: map[string]sdk.RecordReadList{
-				deZoneId: createRecordReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+				deZoneId: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
 					return "a", "a.de", "A", 300, "1.2.3.4"
 				}),
 			},
@@ -601,11 +585,17 @@ func TestApplyChanges(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDnsClient := &mockDNSClient{
-				allZones:    tc.givenZones,
 				zoneRecords: tc.givenZoneRecords,
 				returnError: tc.givenError,
 			}
-			prov := &Provider{client: mockDnsClient, domainFilter: tc.givenDomainFilter}
+			prov := &Provider{
+				client: mockDnsClient,
+				zoneIdToName: map[string]string{
+					deZoneId:  "a.de",
+					comZoneId: "a.com",
+				},
+				zoneTree: zt,
+			}
 			err := prov.ApplyChanges(ctx, tc.whenChanges)
 			if tc.expectedError != nil {
 				require.Error(t, err)
@@ -644,7 +634,11 @@ func TestAdjustEndpoints(t *testing.T) {
 }
 
 func TestReadMaxRecords(t *testing.T) {
-	prov := &Provider{domainFilter: endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
+	prov := &Provider{
+		domainFilter: endpoint.DomainFilter{},
+		client:       pagingMockDNSService{t: t},
+		zoneIdToName: map[string]string{"zoneId": "zoneName"},
+	}
 	endpoints, err := prov.Records(context.Background())
 	require.NoError(t, err)
 	require.Len(t, endpoints, recordReadMaxCount)
@@ -663,7 +657,7 @@ type pagingMockDNSService struct {
 
 func (p pagingMockDNSService) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
 	require.Equal(p.t, 0, int(offset)%recordReadLimit)
-	records := createRecordReadList(recordReadLimit, int(offset), 0, func(i int) (string, string, string, int32, string) {
+	records := createZoneRecordsReadList(recordReadLimit, int(offset), 0, func(i int) (string, string, string, int32, string) {
 		recordName := fmt.Sprintf("a%d", int(offset)+i)
 		return recordName, recordName + ".de", "A", 300, "1.1.1.1"
 	})
@@ -803,7 +797,7 @@ func createRecordCreateSlice(count int, modifier func(int) (string, string, int3
 	return records
 }
 
-func createRecordReadList(count, idOffset int, priority int32, modifier func(int) (string, string, string, int32, string)) sdk.RecordReadList {
+func createZoneRecordsReadList(count, idOffset int, priority int32, modifier func(int) (string, string, string, int32, string)) sdk.RecordReadList {
 	records := make([]sdk.RecordRead, count)
 	for i := 0; i < count; i++ {
 		name, fqdn, typ, ttl, content := modifier(i)
@@ -839,4 +833,8 @@ func createEndpointSlice(count int, modifier func(int) (string, string, endpoint
 		}
 	}
 	return endpoints
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }

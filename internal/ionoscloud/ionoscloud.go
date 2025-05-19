@@ -175,7 +175,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		logger := log.WithField(logFieldRecordFQDN, ep.DNSName).WithField(logFieldRecordType, ep.RecordType)
 		zone := p.zoneTree.FindZoneByDomainName(ep.DNSName)
 		if !zone.HasId() {
-			logger.Warnf("no zone found for domain '%s', skipping record creation", ep.DNSName)
+			logger.Errorf("no zone found for domain '%s', skipping record creation", ep.DNSName)
 			return nil
 		}
 		recordName := extractRecordName(ep.DNSName, zone)
