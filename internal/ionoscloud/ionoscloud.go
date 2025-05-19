@@ -97,8 +97,8 @@ func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
 
 func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error) {
 	var result []sdk.RecordRead
-	offset := int32(0)
 	getZoneRecords := func(zoneId string) error {
+		offset := int32(0)
 		for {
 			recordReadList, err := p.client.GetZoneRecords(ctx, offset, zoneId)
 			if err != nil {
@@ -277,7 +277,7 @@ func (p *Provider) setupZones(ctx context.Context) error {
 		zoneName := *zoneRead.GetProperties().GetZoneName()
 		if p.GetDomainFilter().Match(zoneName) {
 			log.Debugf("zone '%s' matches domain filter", zoneName)
-			zoneId := *zoneRead.GetProperties().GetZoneName()
+			zoneId := *zoneRead.GetId()
 			idToName[zoneId] = zoneName
 			zt.AddZone(zoneRead, zoneName)
 		}

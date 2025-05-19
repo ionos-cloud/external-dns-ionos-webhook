@@ -22,17 +22,17 @@ type DNSService interface {
 
 // GetZoneRecords retrieve all records for a zone https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
 func (c *DNSClient) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
-	log.Debugf("get all records with offset %d ...", offset)
+	log.Debugf("get all records for zone '%s' with offset %d ...", zoneId, offset)
 	records, _, err := c.client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).Limit(recordReadLimit).Offset(offset).
 		FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
-		log.Errorf("failed to get all records: %v", err)
+		log.Errorf("failed to get records for zone '%s': %v", zoneId, err)
 		return records, err
 	}
 	if records.HasItems() {
-		log.Debugf("found %d records", len(*records.Items))
+		log.Debugf("found %d records for zone '%s'", len(*records.Items), zoneId)
 	} else {
-		log.Debug("no records found")
+		log.Debugf("no records found for zone '%s'", zoneId)
 	}
 	return records, err
 }
