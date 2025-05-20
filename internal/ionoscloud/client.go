@@ -25,7 +25,7 @@ type DNSService interface {
 	CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error
 }
 
-func IONOSCloudClient(ionosConfig *ionos.Configuration) DNSService {
+func CreateClient(ionosConfig *ionos.Configuration) DNSService {
 	jwtString := func() string {
 		split := strings.Split(ionosConfig.APIKey, ".")
 		if len(split) == 3 {

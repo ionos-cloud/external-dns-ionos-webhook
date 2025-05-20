@@ -2,19 +2,31 @@ package dnsprovider
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	ionoscloudsdk "github.com/ionos-cloud/sdk-go-dns"
+	sdk "github.com/ionos-developer/dns-sdk-go"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/cmd/webhook/init/configuration"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscore"
 )
 
 func TestInit(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	jwtPayloadEncoded := base64.RawURLEncoding.EncodeToString([]byte(`{ "something" : "we dont care" }`))
+	ionoscoreAPI := mockIonosCoreAPI(t)
+	defer ionoscoreAPI.Close()
+	ionoscloudAPI := mockIonosCloudAPI(t)
+	defer ionoscloudAPI.Close()
 
 	cases := []struct {
 		name          string
@@ -24,21 +36,30 @@ func TestInit(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:         "minimal config for ionos core provider",
-			config:       configuration.Config{},
-			env:          map[string]string{"IONOS_API_KEY": "apikey must be there"},
+			name:   "minimal config for ionos core provider",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_API_KEY": "apikey must be there",
+				"IONOS_API_URL": ionoscoreAPI.URL,
+			},
 			providerType: "core",
 		},
 		{
-			name:         "config for ionos core provider, apikey with 2 dots but no jwt because no json",
-			config:       configuration.Config{},
-			env:          map[string]string{"IONOS_API_KEY": "algorithm.nojson.signature"},
+			name:   "config for ionos core provider, apikey with 2 dots but no jwt because no json",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_API_KEY": "algorithm.nojson.signature",
+				"IONOS_API_URL": ionoscoreAPI.URL,
+			},
 			providerType: "core",
 		},
 		{
-			name:         "config for ionos core provider, apikey with 2 dots but no jwt because payload not base64 encoded",
-			config:       configuration.Config{},
-			env:          map[string]string{"IONOS_API_KEY": "algorithm.==.signature"},
+			name:   "config for ionos core provider, apikey with 2 dots but no jwt because payload not base64 encoded",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_API_KEY": "algorithm.==.signature",
+				"IONOS_API_URL": ionoscoreAPI.URL,
+			},
 			providerType: "core",
 		},
 		{
@@ -46,6 +67,7 @@ func TestInit(t *testing.T) {
 			config: configuration.Config{},
 			env: map[string]string{
 				"IONOS_API_KEY": "algorithm." + jwtPayloadEncoded + ".signature",
+				"IONOS_API_URL": ionoscloudAPI.URL,
 			},
 			providerType: "cloud",
 		},
@@ -77,4 +99,45 @@ func TestInit(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mockIonosCoreAPI(t *testing.T) *httptest.Server {
+	zonesList := []sdk.Zone{
+		{
+			Name: sdk.PtrString("example.com"),
+			Id:   sdk.PtrString("some-id"),
+			Type: sdk.NATIVE.Ptr(),
+		},
+	}
+	jsonZones, err := json.Marshal(zonesList)
+	require.NoError(t, err)
+	mockApi := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json") // Set Content-Type header
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsonZones) //nolint:errcheck
+	}))
+	return mockApi
+}
+
+func mockIonosCloudAPI(t *testing.T) *httptest.Server {
+	zonesList := ionoscloudsdk.ZoneReadList{
+		Id: sdk.PtrString("zone-list-id-1"),
+		Items: &[]ionoscloudsdk.ZoneRead{
+			{
+				Id: sdk.PtrString("zone-id-1"),
+				Properties: &ionoscloudsdk.Zone{
+					ZoneName: sdk.PtrString("example.com"),
+				},
+			},
+		},
+	}
+
+	jsonZones, err := json.Marshal(zonesList)
+	require.NoError(t, err)
+	mockApi := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json") // Set Content-Type header
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsonZones) //nolint:errcheck
+	}))
+	return mockApi
 }

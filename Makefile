@@ -62,7 +62,7 @@ lint-with-fix: ## Runs linter against all go code with fix.
 	$(GOLANCI_LINT) run --fix
 
 .PHONY: static-analysis
-static-analysis: lint ## Run static analysis against code.
+static-analysis: fmt lint ## Run static analysis against code.
 
 ##@ GO
 

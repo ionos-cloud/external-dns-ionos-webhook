@@ -6,10 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
-
 	log "github.com/sirupsen/logrus"
-
+	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 
@@ -17,78 +15,122 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var zoneIdToZoneName = map[string]string{
+	"a": "a.de",
+	"b": "b.de",
+}
+
 type mockDnsService struct {
 	testErrorReturned bool
+	createdRecords    map[string][]sdk.Record
+	deletedRecords    map[string][]string
 }
 
 func TestNewProvider(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
+	successClient := &mockDnsService{testErrorReturned: false}
+	errorClient := &mockDnsService{testErrorReturned: true}
 
-	domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
-	p := NewProvider(domainFilter, &ionos.Configuration{DryRun: true})
-	require.Equal(t, true, p.dryRun)
-	require.True(t, p.GetDomainFilter().Match("a.de"))
-	require.False(t, p.GetDomainFilter().Match("ab.de"))
-	require.NotNilf(t, p.client, "client should not be nil")
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
-	require.Equal(t, false, p.dryRun)
-	require.True(t, p.GetDomainFilter().Match("everything"))
-	require.NotNilf(t, p.client, "client should not be nil")
+	t.Run("success with specific domain filter", func(t *testing.T) {
+		domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
+		p, err := NewProvider(domainFilter, successClient, true)
+		require.NoError(t, err)
+		assert.Equal(t, true, p.dryRun)
+		assert.Equal(t, p.zoneIdToName, map[string]string{"a": "a.de"})
+		assert.True(t, p.GetDomainFilter().Match("a.de"))
+		assert.False(t, p.GetDomainFilter().Match("ab.de"))
+		assert.NotNilf(t, p.client, "client should not be nil")
+	})
+
+	t.Run("success with everything allowed domain filter", func(t *testing.T) {
+		p, err := NewProvider(endpoint.DomainFilter{}, successClient, false)
+		require.NoError(t, err)
+		assert.Equal(t, p.zoneIdToName, map[string]string{"a": "a.de", "b": "b.de"})
+		assert.Equal(t, false, p.dryRun)
+		assert.True(t, p.GetDomainFilter().Match("everything"))
+		assert.NotNilf(t, p.client, "client should not be nil")
+	})
+
+	t.Run("error when getting zones", func(t *testing.T) {
+		domainFilter := endpoint.NewDomainFilter([]string{"a.de."})
+		p, err := NewProvider(domainFilter, errorClient, true)
+		require.Error(t, err)
+		assert.Nil(t, p)
+	})
 }
 
 func TestRecords(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.Background()
 
-	provider := &Provider{client: mockDnsService{testErrorReturned: false}}
-	endpoints, err := provider.Records(ctx)
-	if err != nil {
-		t.Errorf("should not fail, %s", err)
-	}
-	require.Equal(t, 5, len(endpoints))
+	t.Run("success", func(t *testing.T) {
+		p := &Provider{
+			client: &mockDnsService{testErrorReturned: false},
+			zoneIdToName: map[string]string{
+				"a": "a.de",
+				"b": "b.de",
+			},
+		}
+		endpoints, err := p.Records(ctx)
+		require.NoError(t, err, "should not fail")
+		assert.Equal(t, 5, len(endpoints))
+	})
 
-	provider = &Provider{client: mockDnsService{testErrorReturned: true}}
-	_, err = provider.Records(ctx)
-
-	if err == nil {
-		t.Errorf("expected to fail, %s", err)
-	}
+	t.Run("error when getting records", func(t *testing.T) {
+		p := &Provider{
+			client: &mockDnsService{testErrorReturned: true},
+			zoneIdToName: map[string]string{
+				"a": "a.de",
+				"b": "b.de",
+			},
+		}
+		endpoints, err := p.Records(ctx)
+		require.Nil(t, endpoints)
+		require.Error(t, err, "should fail")
+	})
 }
 
 func TestApplyChanges(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	ctx := context.Background()
 
-	provider := &Provider{client: mockDnsService{testErrorReturned: false}}
-	err := provider.ApplyChanges(ctx, changes())
-	if err != nil {
-		t.Errorf("should not fail, %s", err)
-	}
+	t.Run("success", func(t *testing.T) {
+		mockClient := &mockDnsService{testErrorReturned: false}
+		p := &Provider{
+			client: mockClient,
+			zoneIdToName: map[string]string{
+				"a": "a.de",
+				"b": "b.de",
+			},
+		}
+		err := p.ApplyChanges(ctx, changes())
+		require.NoError(t, err)
 
-	// 3 records must be deleted
-	require.Equal(t, deletedRecords["b"], []string{"6"})
-	sort.Strings(deletedRecords["a"])
-	require.Equal(t, deletedRecords["a"], []string{"1", "2"})
-	// 3 records must be created
-	if !isRecordCreated("a", "a.de", sdk.A, "3.3.3.3", 2000) {
-		t.Errorf("Record a.de A 3.3.3.3 not created")
-	}
-	if !isRecordCreated("a", "a.de", sdk.A, "4.4.4.4", 2000) {
-		t.Errorf("Record a.de A 4.4.4.4 not created")
-	}
-	if !isRecordCreated("a", "new.a.de", sdk.CNAME, "a.de", 0) {
-		t.Errorf("Record new.a.de CNAME a.de not created")
-	}
+		// 3 records must be deleted
+		require.Equal(t, mockClient.deletedRecords["b"], []string{"6"})
+		sort.Strings(mockClient.deletedRecords["a"])
+		require.Equal(t, mockClient.deletedRecords["a"], []string{"1", "2"})
+		// 3 records must be created
+		assert.True(t, mockClient.isRecordCreated("a", "a.de", sdk.A, "3.3.3.3", 2000), "Record a.de A 3.3.3.3 not created")
+		assert.True(t, mockClient.isRecordCreated("a", "a.de", sdk.A, "4.4.4.4", 2000), "Record a.de A 4.4.4.4 not created")
+		assert.True(t, mockClient.isRecordCreated("a", "new.a.de", sdk.CNAME, "a.de", 0), "Record new.a.de CNAME a.de not created")
+	})
 
-	provider = &Provider{client: mockDnsService{testErrorReturned: true}}
-	err = provider.ApplyChanges(ctx, nil)
-
-	if err == nil {
-		t.Errorf("expected to fail, %s", err)
-	}
+	t.Run("deletion failed ", func(t *testing.T) {
+		mockClient := &mockDnsService{testErrorReturned: true}
+		p := &Provider{
+			client: mockClient,
+			zoneIdToName: map[string]string{
+				"b": "b.de",
+			},
+		}
+		err := p.ApplyChanges(ctx, changes())
+		require.NoError(t, err)
+		require.Len(t, mockClient.deletedRecords["b"], 0)
+	})
 }
 
-func (m mockDnsService) GetZones(ctx context.Context) ([]sdk.Zone, error) {
+func (m *mockDnsService) GetZones(ctx context.Context) ([]sdk.Zone, error) {
 	if m.testErrorReturned {
 		return nil, fmt.Errorf("GetZones failed")
 	}
@@ -104,7 +146,7 @@ func (m mockDnsService) GetZones(ctx context.Context) ([]sdk.Zone, error) {
 	return []sdk.Zone{*a, *b}, nil
 }
 
-func (m mockDnsService) GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error) {
+func (m *mockDnsService) GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error) {
 	if m.testErrorReturned {
 		return nil, fmt.Errorf("GetZone failed")
 	}
@@ -128,13 +170,25 @@ func (m mockDnsService) GetZone(ctx context.Context, zoneId string) (*sdk.Custom
 	return zone, nil
 }
 
-func (m mockDnsService) CreateRecords(ctx context.Context, zoneId string, records []sdk.Record) error {
-	createdRecords[zoneId] = append(createdRecords[zoneId], records...)
+func (m *mockDnsService) CreateRecords(ctx context.Context, zoneId string, records []sdk.Record) error {
+	if m.testErrorReturned {
+		return fmt.Errorf("CreateRecords failed")
+	}
+	if m.createdRecords == nil {
+		m.createdRecords = make(map[string][]sdk.Record)
+	}
+	m.createdRecords[zoneId] = append(m.createdRecords[zoneId], records...)
 	return nil
 }
 
-func (m mockDnsService) DeleteRecord(ctx context.Context, zoneId string, recordId string) error {
-	deletedRecords[zoneId] = append(deletedRecords[zoneId], recordId)
+func (m *mockDnsService) DeleteRecord(ctx context.Context, zoneId string, recordId string) error {
+	if m.testErrorReturned {
+		return fmt.Errorf("DeleteRecord failed")
+	}
+	if m.deletedRecords == nil {
+		m.deletedRecords = make(map[string][]string)
+	}
+	m.deletedRecords[zoneId] = append(m.deletedRecords[zoneId], recordId)
 	return nil
 }
 
@@ -162,18 +216,8 @@ func changes() *plan.Changes {
 	return changes
 }
 
-var zoneIdToZoneName = map[string]string{
-	"a": "a.de",
-	"b": "b.de",
-}
-
-var (
-	createdRecords = map[string][]sdk.Record{"a": {}, "b": {}}
-	deletedRecords = map[string][]string{"a": {}, "b": {}}
-)
-
-func isRecordCreated(zoneId string, name string, recordType sdk.RecordTypes, content string, ttl int32) bool {
-	for _, record := range createdRecords[zoneId] {
+func (m mockDnsService) isRecordCreated(zoneId string, name string, recordType sdk.RecordTypes, content string, ttl int32) bool {
+	for _, record := range m.createdRecords[zoneId] {
 		if *record.Name == name && *record.Type == recordType && *record.Content == content && (ttl == 0 || *record.Ttl == ttl) {
 			return true
 		}

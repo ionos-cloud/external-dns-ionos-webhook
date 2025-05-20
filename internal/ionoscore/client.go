@@ -25,7 +25,7 @@ type DnsService interface {
 	DeleteRecord(ctx context.Context, zoneId string, recordId string) error
 }
 
-func IONOSCoreClient(config *ionos.Configuration) DnsService {
+func CreateClient(config *ionos.Configuration) DnsService {
 	maskAPIKey := func() string {
 		if len(config.APIKey) <= 3 {
 			return strings.Repeat("*", len(config.APIKey))

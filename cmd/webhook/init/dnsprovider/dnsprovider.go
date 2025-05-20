@@ -99,7 +99,7 @@ func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
 }
 
 func ionoscoreProvider(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) (provider.Provider, error) {
-	client := ionoscore.IONOSCoreClient(ionosConfig)
+	client := ionoscore.CreateClient(ionosConfig)
 	prov, err := ionoscore.NewProvider(domainFilter, client, ionosConfig.DryRun)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IONOS Core provider: %w", err)
@@ -108,7 +108,7 @@ func ionoscoreProvider(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Co
 }
 
 func ionoscloudProvider(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) (provider.Provider, error) {
-	client := ionoscloud.IONOSCloudClient(ionosConfig)
+	client := ionoscloud.CreateClient(ionosConfig)
 	prov, err := ionoscloud.NewProvider(domainFilter, client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create IONOS Cloud provider: %w", err)

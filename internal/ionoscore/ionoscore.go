@@ -47,11 +47,10 @@ func NewProvider(domanfilter endpoint.DomainFilter, client DnsService, isDryRun 
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	var endpoints []*endpoint.Endpoint
 
-	for zoneId := range p.zoneIdToName {
+	for zoneId, zoneName := range p.zoneIdToName {
 		zoneInfo, err := p.client.GetZone(ctx, zoneId)
 		if err != nil {
-			log.Errorf("Failed to fetch zoneId %v: %v", zoneId, err)
-			continue
+			return nil, fmt.Errorf("failed to get zone info for zone %s: %w", zoneName, err)
 		}
 
 		recordSets := map[string]*endpoint.Endpoint{}
@@ -214,7 +213,7 @@ func (p *Provider) setupZones(ctx context.Context) error {
 	mapping := map[string]string{}
 
 	for _, zone := range zones {
-		if p.BaseProvider.GetDomainFilter().Match(*zone.Name) {
+		if p.GetDomainFilter().Match(*zone.Name) {
 			mapping[*zone.Id] = *zone.Name
 		}
 	}
