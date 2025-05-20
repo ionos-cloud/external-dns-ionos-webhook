@@ -46,7 +46,7 @@ type Provider struct {
 	client       DNSService
 	domainFilter endpoint.DomainFilterInterface
 	zoneTree     *ionos.ZoneTree[sdk.ZoneRead]
-	zoneIdToName map[string]string
+	zoneNameToID map[string]string
 }
 
 // NewProvider returns an instance of new provider
@@ -59,7 +59,7 @@ func NewProvider(domainFilter endpoint.DomainFilter, client DNSService) (*Provid
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zone tree: %w", err)
 	}
-	if len(prov.zoneIdToName) == 0 {
+	if len(prov.zoneNameToID) == 0 {
 		return nil, fmt.Errorf("no zones matching domain filter found")
 	}
 	return prov, nil
@@ -67,12 +67,12 @@ func NewProvider(domainFilter endpoint.DomainFilter, client DNSService) (*Provid
 
 func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error) {
 	var result []sdk.RecordRead
-	getZoneRecords := func(zoneId string) error {
+	getZoneRecords := func(zone string) error {
 		offset := int32(0)
 		for {
 			recordReadList, err := ionos.RetryLoadZones(ctx, p.setupZones,
 				func() (sdk.RecordReadList, error) {
-					return p.client.GetZoneRecords(ctx, offset, zoneId)
+					return p.client.GetZoneRecords(ctx, offset, p.zoneNameToID[zone])
 				})
 			if err != nil {
 				return err
@@ -91,9 +91,9 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 		return nil
 	}
 
-	for id, name := range p.zoneIdToName {
-		if err := getZoneRecords(id); err != nil {
-			return nil, fmt.Errorf("failed to get records for zone %s, error: %w", name, err)
+	for zone := range p.zoneNameToID {
+		if err := getZoneRecords(zone); err != nil {
+			return nil, fmt.Errorf("failed to get records for zone %s, error: %w", zone, err)
 		}
 	}
 	return result, nil
@@ -227,7 +227,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 
 func (p *Provider) setupZones(ctx context.Context) error {
 	zt := ionos.NewZoneTree[sdk.ZoneRead]()
-	idToName := make(map[string]string)
+	nameToId := make(map[string]string)
 	var allZones []sdk.ZoneRead
 	offset := int32(0)
 	for {
@@ -251,13 +251,13 @@ func (p *Provider) setupZones(ctx context.Context) error {
 		if p.GetDomainFilter().Match(zoneName) {
 			log.Debugf("zone '%s' matches domain filter", zoneName)
 			zoneId := *zoneRead.GetId()
-			idToName[zoneId] = zoneName
+			nameToId[zoneName] = zoneId
 			zt.AddZone(zoneRead, zoneName)
 		}
 	}
 
 	p.zoneTree = zt
-	p.zoneIdToName = idToName
+	p.zoneNameToID = nameToId
 	return nil
 }
 

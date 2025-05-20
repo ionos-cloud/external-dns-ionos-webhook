@@ -91,13 +91,13 @@ func TestRecords(t *testing.T) {
 			client:       client,
 			domainFilter: endpoint.NewDomainFilter([]string{"a.de.", "b.de."}),
 			zoneNameToID: map[string]string{
-				"a.de": "wrong",
-				"b.de": "wrong",
+				"a.de": "wrong-id",
+				"b.de": "wrong-id",
 			},
 		}
 		endpoints, err := p.Records(ctx)
 		require.NoError(t, err, "should not fail")
-		assert.Equal(t, 3, client.callCount)
+		assert.Equal(t, 3, client.callCount) // 1st call fails, then two successful calls: 1 for a.de and 1 for b.de
 		assert.Equal(t, map[string]string{"a.de": "a", "b.de": "b"}, p.zoneNameToID)
 		assert.Equal(t, 5, len(endpoints))
 	})
@@ -252,7 +252,7 @@ type mockDnsServiceRetry struct {
 
 func (m *mockDnsServiceRetry) GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error) {
 	m.callCount++
-	if m.callCount == 1 {
+	if _, ok := zoneIdToZoneName[zoneId]; !ok {
 		return nil, fmt.Errorf("GetZone failed with errors: %w", ionos.ErrZoneNotFound)
 	}
 	return m.mockDnsService.GetZone(ctx, zoneId)

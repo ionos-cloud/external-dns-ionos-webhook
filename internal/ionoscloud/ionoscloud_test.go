@@ -34,6 +34,7 @@ func TestNewProvider(t *testing.T) {
 	t.Run("success, specific domain filter ", func(t *testing.T) {
 		p, err := NewProvider(domainFilter, deZoneClient)
 		require.NoError(t, err)
+		assert.Equal(t, p.zoneNameToID, map[string]string{"a.de": "deZoneId"})
 		require.True(t, true, p.GetDomainFilter().Match("a.de."))
 		require.False(t, p.GetDomainFilter().Match("b.de."))
 	})
@@ -190,9 +191,9 @@ func TestRecords(t *testing.T) {
 			}
 			prov := &Provider{
 				client: mockDnsClient,
-				zoneIdToName: map[string]string{
-					zoneIDa: "a.de",
-					zoneIDb: "b.de",
+				zoneNameToID: map[string]string{
+					"a.de": zoneIDa,
+					"b.de": zoneIDb,
 				},
 			}
 			endpoints, err := prov.Records(ctx)
@@ -201,10 +202,59 @@ func TestRecords(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Len(t, endpoints, len(tc.expectedEndpoints))
+			assert.Len(t, endpoints, len(tc.expectedEndpoints))
 			assert.ElementsMatch(t, tc.expectedEndpoints, endpoints)
 		})
 	}
+}
+
+func TestRecords_RetryZoneNotFound(t *testing.T) {
+	allZones := createZoneReadList(2, func(i int) (string, string) {
+		return fmt.Sprintf("zoneId%d", i), fmt.Sprintf("zoneName%d", i)
+	})
+	wantIds := []string{"zoneId0", "zoneId1"}
+	wantZoneNames := []string{"zoneName0", "zoneName1"}
+	mockDnsClient := &retryMockDNSClient{
+		mockDNSClient: mockDNSClient{
+			allZones: allZones,
+		},
+	}
+	prov := &Provider{
+		client: mockDnsClient,
+		zoneNameToID: map[string]string{
+			wantZoneNames[0]: "wrong-id1",
+			wantZoneNames[1]: "wrong-id2",
+		},
+		domainFilter: endpoint.NewDomainFilter(wantZoneNames),
+	}
+
+	mockDnsClient.zoneRecords = map[string]sdk.RecordReadList{
+		wantIds[0]: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+			return "a", fmt.Sprintf("a.%s", wantZoneNames[0]), "A", 300, "1.2.3.4"
+		}),
+		wantIds[1]: createZoneRecordsReadList(1, 0, 0, func(i int) (string, string, string, int32, string) {
+			return "a", fmt.Sprintf("a.%s", wantZoneNames[1]), "A", 300, "3.3.3.3"
+		}),
+	}
+	expectedEndpoints := createEndpointSlice(2, func(i int) (string, string, endpoint.TTL, []string) {
+		if i == 0 {
+			return fmt.Sprintf("a.%s", wantZoneNames[0]), "A", endpoint.TTL(300), []string{"1.2.3.4"}
+		} else {
+			return fmt.Sprintf("a.%s", wantZoneNames[1]), "A", endpoint.TTL(300), []string{"3.3.3.3"}
+		}
+	})
+	expectedMapping := map[string]string{
+		wantZoneNames[0]: wantIds[0],
+		wantZoneNames[1]: wantIds[1],
+	}
+
+	ctx := context.Background()
+	endpoints, err := prov.Records(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, mockDnsClient.countCalls, 3) // 1st call fails, then two successful calls: 1 for zoneName0 and 1 for zoneName1
+	assert.Equal(t, expectedMapping, prov.zoneNameToID)
+	assert.Len(t, endpoints, len(expectedEndpoints))
+	assert.ElementsMatch(t, expectedEndpoints, endpoints)
 }
 
 func TestApplyChanges(t *testing.T) {
@@ -631,7 +681,7 @@ func TestApplyChanges(t *testing.T) {
 			}
 			prov := &Provider{
 				client:       mockDnsClient,
-				zoneIdToName: tc.givenZoneNameToId,
+				zoneNameToID: tc.givenZoneNameToId,
 				zoneTree:     tc.givenZoneTree,
 			}
 			err := prov.ApplyChanges(ctx, tc.whenChanges)
@@ -675,7 +725,7 @@ func TestReadMaxRecords(t *testing.T) {
 	prov := &Provider{
 		domainFilter: endpoint.DomainFilter{},
 		client:       pagingMockDNSService{t: t},
-		zoneIdToName: map[string]string{"zoneId": "zoneName"},
+		zoneNameToID: map[string]string{"zoneId": "zoneName"},
 	}
 	endpoints, err := prov.Records(context.Background())
 	require.NoError(t, err)
@@ -725,6 +775,21 @@ func (pagingMockDNSService) DeleteRecord(ctx context.Context, zoneId string, rec
 
 func (pagingMockDNSService) CreateRecord(ctx context.Context, zoneId string, record sdk.RecordCreate) error {
 	panic("implement me")
+}
+
+type retryMockDNSClient struct {
+	mockDNSClient
+	countCalls int
+}
+
+func (c *retryMockDNSClient) GetZoneRecords(ctx context.Context, offset int32, zoneId string) (sdk.RecordReadList, error) {
+	c.countCalls++
+	for _, z := range *c.allZones.Items {
+		if zoneId == *z.GetId() {
+			return c.mockDNSClient.GetZoneRecords(ctx, offset, zoneId)
+		}
+	}
+	return sdk.RecordReadList{}, fmt.Errorf("error: %w", ionos.ErrZoneNotFound)
 }
 
 type mockDNSClient struct {

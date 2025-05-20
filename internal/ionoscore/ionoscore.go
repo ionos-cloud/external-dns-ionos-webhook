@@ -49,13 +49,12 @@ func NewProvider(domanfilter endpoint.DomainFilter, client DnsService, isDryRun 
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	var endpoints []*endpoint.Endpoint
 
-	for zoneName, zoneId := range p.zoneNameToID {
+	for zone := range p.zoneNameToID {
 		zoneInfo, err := ionos.RetryLoadZones(ctx, p.setupZones, func() (*sdk.CustomerZone, error) {
-			zoneId = p.zoneNameToID[zoneName] // get the zone ID from the map in case it was changed
-			return p.client.GetZone(ctx, zoneId)
+			return p.client.GetZone(ctx, p.zoneNameToID[zone])
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get zone info for zone %s: %w", zoneName, err)
+			return nil, fmt.Errorf("failed to get zone info for zone %s: %w", zone, err)
 		}
 
 		recordSets := map[string]*endpoint.Endpoint{}
@@ -151,7 +150,7 @@ func (p *Provider) deleteEndpoint(ctx context.Context, e *endpoint.Endpoint, zon
 		}
 
 		if recordId == "" {
-			log.Errorf("Record %v %v %v not found in zone", e.DNSName, e.RecordType, target)
+			log.Warnf("Record %v %v %v not found in zone", e.DNSName, e.RecordType, target)
 			continue
 		}
 
