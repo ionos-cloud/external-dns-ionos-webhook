@@ -12,6 +12,8 @@ import (
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/plan"
 	"sigs.k8s.io/external-dns/provider"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
 
 // Provider implements the DNS provider for IONOS DNS.
@@ -20,7 +22,7 @@ type Provider struct {
 	client       DnsService
 	dryRun       bool
 	domainFilter endpoint.DomainFilterInterface
-	zoneIdToName map[string]string
+	zoneNameToID map[string]string
 }
 
 var _ provider.Provider = (*Provider)(nil)
@@ -36,7 +38,7 @@ func NewProvider(domanfilter endpoint.DomainFilter, client DnsService, isDryRun 
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup zones: %w", err)
 	}
-	if len(prov.zoneIdToName) == 0 {
+	if len(prov.zoneNameToID) == 0 {
 		return nil, fmt.Errorf("no zones matching domain filter found")
 	}
 
@@ -47,8 +49,11 @@ func NewProvider(domanfilter endpoint.DomainFilter, client DnsService, isDryRun 
 func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 	var endpoints []*endpoint.Endpoint
 
-	for zoneId, zoneName := range p.zoneIdToName {
-		zoneInfo, err := p.client.GetZone(ctx, zoneId)
+	for zoneName, zoneId := range p.zoneNameToID {
+		zoneInfo, err := ionos.RetryLoadZones(ctx, p.setupZones, func() (*sdk.CustomerZone, error) {
+			zoneId = p.zoneNameToID[zoneName] // get the zone ID from the map in case it was changed
+			return p.client.GetZone(ctx, zoneId)
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get zone info for zone %s: %w", zoneName, err)
 		}
@@ -62,7 +67,6 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 				recordSets[key] = recordToEndpoint(r)
 			}
 		}
-
 		for _, ep := range recordSets {
 			endpoints = append(endpoints, ep)
 		}
@@ -89,7 +93,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	zonesToDeleteFrom := p.fetchZonesToDeleteFrom(ctx, toDelete)
 
 	for _, e := range toDelete {
-		zoneId := getHostZoneID(e.DNSName, p.zoneIdToName)
+		zoneId := getHostZoneID(e.DNSName, p.zoneNameToID)
 		if zoneId == "" {
 			log.Warnf("No zone to delete %v from", e)
 			continue
@@ -103,7 +107,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	}
 
 	for _, e := range toCreate {
-		p.createEndpoint(ctx, e, p.zoneIdToName)
+		p.createEndpoint(ctx, e, p.zoneNameToID)
 	}
 
 	return nil
@@ -113,7 +117,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 func (p *Provider) fetchZonesToDeleteFrom(ctx context.Context, toDelete []*endpoint.Endpoint) map[string]*sdk.CustomerZone {
 	zonesIdsToDeleteFrom := map[string]bool{}
 	for _, e := range toDelete {
-		zoneId := getHostZoneID(e.DNSName, p.zoneIdToName)
+		zoneId := getHostZoneID(e.DNSName, p.zoneNameToID)
 		if zoneId != "" {
 			zonesIdsToDeleteFrom[zoneId] = true
 		}
@@ -214,11 +218,11 @@ func (p *Provider) setupZones(ctx context.Context) error {
 
 	for _, zone := range zones {
 		if p.GetDomainFilter().Match(*zone.Name) {
-			mapping[*zone.Id] = *zone.Name
+			mapping[*zone.Name] = *zone.Id
 		}
 	}
 
-	p.zoneIdToName = mapping
+	p.zoneNameToID = mapping
 	return nil
 }
 
@@ -227,7 +231,7 @@ func getHostZoneID(hostname string, zones map[string]string) string {
 	longestZoneLength := 0
 	resultID := ""
 
-	for zoneID, zoneName := range zones {
+	for zoneName, zoneID := range zones {
 		if !strings.HasSuffix(hostname, zoneName) {
 			continue
 		}

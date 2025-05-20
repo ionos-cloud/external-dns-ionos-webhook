@@ -70,7 +70,10 @@ func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error)
 	getZoneRecords := func(zoneId string) error {
 		offset := int32(0)
 		for {
-			recordReadList, err := p.client.GetZoneRecords(ctx, offset, zoneId)
+			recordReadList, err := ionos.RetryLoadZones(ctx, p.setupZones,
+				func() (sdk.RecordReadList, error) {
+					return p.client.GetZoneRecords(ctx, offset, zoneId)
+				})
 			if err != nil {
 				return err
 			}

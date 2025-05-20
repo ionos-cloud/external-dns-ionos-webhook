@@ -13,17 +13,13 @@ import (
 
 	sdk "github.com/ionos-developer/dns-sdk-go"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 )
 
 var zoneIdToZoneName = map[string]string{
 	"a": "a.de",
 	"b": "b.de",
-}
-
-type mockDnsService struct {
-	testErrorReturned bool
-	createdRecords    map[string][]sdk.Record
-	deletedRecords    map[string][]string
 }
 
 func TestNewProvider(t *testing.T) {
@@ -36,7 +32,7 @@ func TestNewProvider(t *testing.T) {
 		p, err := NewProvider(domainFilter, successClient, true)
 		require.NoError(t, err)
 		assert.Equal(t, true, p.dryRun)
-		assert.Equal(t, p.zoneIdToName, map[string]string{"a": "a.de"})
+		assert.Equal(t, p.zoneNameToID, map[string]string{"a.de": "a"})
 		assert.True(t, p.GetDomainFilter().Match("a.de"))
 		assert.False(t, p.GetDomainFilter().Match("ab.de"))
 		assert.NotNilf(t, p.client, "client should not be nil")
@@ -45,7 +41,7 @@ func TestNewProvider(t *testing.T) {
 	t.Run("success with everything allowed domain filter", func(t *testing.T) {
 		p, err := NewProvider(endpoint.DomainFilter{}, successClient, false)
 		require.NoError(t, err)
-		assert.Equal(t, p.zoneIdToName, map[string]string{"a": "a.de", "b": "b.de"})
+		assert.Equal(t, p.zoneNameToID, map[string]string{"a.de": "a", "b.de": "b"})
 		assert.Equal(t, false, p.dryRun)
 		assert.True(t, p.GetDomainFilter().Match("everything"))
 		assert.NotNilf(t, p.client, "client should not be nil")
@@ -66,9 +62,9 @@ func TestRecords(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		p := &Provider{
 			client: &mockDnsService{testErrorReturned: false},
-			zoneIdToName: map[string]string{
-				"a": "a.de",
-				"b": "b.de",
+			zoneNameToID: map[string]string{
+				"a.de": "a",
+				"b.de": "b",
 			},
 		}
 		endpoints, err := p.Records(ctx)
@@ -79,14 +75,31 @@ func TestRecords(t *testing.T) {
 	t.Run("error when getting records", func(t *testing.T) {
 		p := &Provider{
 			client: &mockDnsService{testErrorReturned: true},
-			zoneIdToName: map[string]string{
-				"a": "a.de",
-				"b": "b.de",
+			zoneNameToID: map[string]string{
+				"a.de": "a",
+				"b.de": "b",
 			},
 		}
 		endpoints, err := p.Records(ctx)
 		require.Nil(t, endpoints)
 		require.Error(t, err, "should fail")
+	})
+
+	t.Run("zone not found, rectified on retry", func(t *testing.T) {
+		client := &mockDnsServiceRetry{}
+		p := &Provider{
+			client:       client,
+			domainFilter: endpoint.NewDomainFilter([]string{"a.de.", "b.de."}),
+			zoneNameToID: map[string]string{
+				"a.de": "wrong",
+				"b.de": "wrong",
+			},
+		}
+		endpoints, err := p.Records(ctx)
+		require.NoError(t, err, "should not fail")
+		assert.Equal(t, 3, client.callCount)
+		assert.Equal(t, map[string]string{"a.de": "a", "b.de": "b"}, p.zoneNameToID)
+		assert.Equal(t, 5, len(endpoints))
 	})
 }
 
@@ -98,9 +111,9 @@ func TestApplyChanges(t *testing.T) {
 		mockClient := &mockDnsService{testErrorReturned: false}
 		p := &Provider{
 			client: mockClient,
-			zoneIdToName: map[string]string{
-				"a": "a.de",
-				"b": "b.de",
+			zoneNameToID: map[string]string{
+				"a.de": "a",
+				"b.de": "b",
 			},
 		}
 		err := p.ApplyChanges(ctx, changes())
@@ -120,14 +133,20 @@ func TestApplyChanges(t *testing.T) {
 		mockClient := &mockDnsService{testErrorReturned: true}
 		p := &Provider{
 			client: mockClient,
-			zoneIdToName: map[string]string{
-				"b": "b.de",
+			zoneNameToID: map[string]string{
+				"b.de": "b",
 			},
 		}
 		err := p.ApplyChanges(ctx, changes())
 		require.NoError(t, err)
 		require.Len(t, mockClient.deletedRecords["b"], 0)
 	})
+}
+
+type mockDnsService struct {
+	testErrorReturned bool
+	createdRecords    map[string][]sdk.Record
+	deletedRecords    map[string][]string
 }
 
 func (m *mockDnsService) GetZones(ctx context.Context) ([]sdk.Zone, error) {
@@ -224,4 +243,17 @@ func (m mockDnsService) isRecordCreated(zoneId string, name string, recordType s
 	}
 
 	return false
+}
+
+type mockDnsServiceRetry struct {
+	mockDnsService
+	callCount int
+}
+
+func (m *mockDnsServiceRetry) GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error) {
+	m.callCount++
+	if m.callCount == 1 {
+		return nil, fmt.Errorf("GetZone failed with errors: %w", ionos.ErrZoneNotFound)
+	}
+	return m.mockDnsService.GetZone(ctx, zoneId)
 }

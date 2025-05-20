@@ -64,7 +64,10 @@ func (c DnsClient) GetZones(ctx context.Context) ([]sdk.Zone, error) {
 
 // GetZone client get zone method
 func (c DnsClient) GetZone(ctx context.Context, zoneId string) (*sdk.CustomerZone, error) {
-	zoneInfo, _, err := c.client.ZonesApi.GetZone(ctx, zoneId).Execute()
+	zoneInfo, httpResponse, err := c.client.ZonesApi.GetZone(ctx, zoneId).Execute()
+	if httpResponse != nil && httpResponse.StatusCode == 404 {
+		return nil, ionos.ErrZoneNotFound
+	}
 	return zoneInfo, err
 }
 
