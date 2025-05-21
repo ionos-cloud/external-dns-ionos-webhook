@@ -76,6 +76,7 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 
 // ApplyChanges applies a given set of changes.
 func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
+	log.WithFields(log.Fields{"changes_plan": changes}).Debug("Calling ApplyChanges()...")
 	toCreate := make([]*endpoint.Endpoint, len(changes.Create))
 	copy(toCreate, changes.Create)
 
@@ -108,6 +109,8 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	for _, e := range toCreate {
 		p.createEndpoint(ctx, e, p.zoneNameToID)
 	}
+
+	log.WithFields(log.Fields{"deleted_endpoints": toDelete, "created_endpoints": toCreate}).Debug("Changes applied")
 
 	return nil
 }

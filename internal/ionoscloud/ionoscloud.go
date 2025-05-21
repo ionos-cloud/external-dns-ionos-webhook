@@ -125,6 +125,7 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 }
 
 func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) error {
+	log.WithFields(log.Fields{"changes_plan": changes}).Debug("Calling ApplyChanges()...")
 	epToCreate, epToDelete := ionos.GetCreateDeleteSetsFromChanges(changes)
 	recordsToDelete := ionos.NewRecordCollection[sdk.RecordRead](epToDelete, func(ep *endpoint.Endpoint) []sdk.RecordRead {
 		logger := log.WithField(logFieldRecordFQDN, ep.DNSName)
@@ -222,6 +223,8 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 	}); err != nil {
 		return err
 	}
+
+	log.WithFields(log.Fields{"deleted_endpoints": epToDelete, "created_endpoints": epToCreate}).Debug("Changes applied")
 	return nil
 }
 
