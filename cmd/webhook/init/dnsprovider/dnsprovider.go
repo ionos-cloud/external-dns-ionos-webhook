@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/external-dns/provider"
 )
 
-type IONOSProviderFactory func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
+type IONOSProviderFactory func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
 
 func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configuration) {
 	if ionosConfig.APIEndpointURL == "" {
@@ -30,18 +30,18 @@ func setDefaults(apiEndpointURL, authHeader string, ionosConfig *ionos.Configura
 	}
 }
 
-var IonosCoreProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
+var IonosCoreProviderFactory = func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://api.hosting.ionos.com/dns", "X-API-Key", ionosConfig)
 	return ionoscore.NewProvider(domainFilter, ionosConfig)
 }
 
-var IonosCloudProviderFactory = func(domainFilter endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
+var IonosCloudProviderFactory = func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider {
 	setDefaults("https://dns.de-fra.ionos.com", "Bearer", ionosConfig)
 	return ionoscloud.NewProvider(domainFilter, ionosConfig)
 }
 
 func Init(config configuration.Config) (provider.Provider, error) {
-	var domainFilter endpoint.DomainFilter
+	var domainFilter *endpoint.DomainFilter
 	createMsg := "Creating IONOS provider with "
 
 	if config.RegexDomainFilter != "" {

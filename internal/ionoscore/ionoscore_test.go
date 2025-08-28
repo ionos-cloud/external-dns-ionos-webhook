@@ -30,7 +30,7 @@ func TestNewProvider(t *testing.T) {
 	require.True(t, p.GetDomainFilter().Match("a.de"))
 	require.False(t, p.GetDomainFilter().Match("ab.de"))
 	require.NotNilf(t, p.client, "client should not be nil")
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
+	p = NewProvider(&endpoint.DomainFilter{}, &ionos.Configuration{})
 	require.Equal(t, false, p.dryRun)
 	require.True(t, p.GetDomainFilter().Match("everything"))
 	require.NotNilf(t, p.client, "client should not be nil")

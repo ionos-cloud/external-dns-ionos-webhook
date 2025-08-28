@@ -65,7 +65,7 @@ func (c DnsClient) DeleteRecord(ctx context.Context, zoneId string, recordId str
 var _ provider.Provider = (*Provider)(nil)
 
 // NewProvider creates a new IONOS DNS provider.
-func NewProvider(domanfilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
+func NewProvider(domanfilter endpoint.DomainFilterInterface, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 
 	prov := &Provider{
