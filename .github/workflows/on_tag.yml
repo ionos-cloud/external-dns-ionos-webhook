@@ -21,8 +21,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v5
         with:
-          go-version: stable
-
+          go-version-file: 'go.mod'
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
