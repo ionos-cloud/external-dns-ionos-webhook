@@ -25,7 +25,7 @@ func TestNewProvider(t *testing.T) {
 	require.True(t, true, p.GetDomainFilter().Match("a.de."))
 	require.False(t, p.GetDomainFilter().Match("b.de."))
 
-	p = NewProvider(endpoint.DomainFilter{}, &ionos.Configuration{})
+	p = NewProvider(&endpoint.DomainFilter{}, &ionos.Configuration{})
 	require.True(t, true, p.GetDomainFilter().Match("everything.com"))
 }
 
@@ -36,7 +36,7 @@ func TestRecords(t *testing.T) {
 		name              string
 		givenRecords      sdk.RecordReadList
 		givenError        error
-		givenDomainFilter endpoint.DomainFilter
+		givenDomainFilter *endpoint.DomainFilter
 		expectedEndpoints []*endpoint.Endpoint
 		expectedError     error
 	}{
@@ -175,7 +175,7 @@ func TestApplyChanges(t *testing.T) {
 		givenZones             sdk.ZoneReadList
 		givenZoneRecords       map[string]sdk.RecordReadList
 		givenError             error
-		givenDomainFilter      endpoint.DomainFilter
+		givenDomainFilter      *endpoint.DomainFilter
 		whenChanges            *plan.Changes
 		expectedError          error
 		expectedRecordsCreated map[string][]sdk.RecordCreate
@@ -643,14 +643,14 @@ func TestAdjustEndpoints(t *testing.T) {
 }
 
 func TestReadMaxRecords(t *testing.T) {
-	prov := &Provider{domainFilter: endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
+	prov := &Provider{domainFilter: &endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
 	endpoints, err := prov.Records(context.Background())
 	require.NoError(t, err)
 	require.Len(t, endpoints, recordReadMaxCount)
 }
 
 func TestReadMaxZones(t *testing.T) {
-	prov := &Provider{domainFilter: endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
+	prov := &Provider{domainFilter: &endpoint.DomainFilter{}, client: pagingMockDNSService{t: t}}
 	zt, err := prov.createZoneTree(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, zoneReadMaxCount, zt.GetZonesCount())

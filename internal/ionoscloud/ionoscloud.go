@@ -147,7 +147,7 @@ type Provider struct {
 }
 
 // NewProvider returns an instance of new provider
-func NewProvider(domainFilter endpoint.DomainFilter, configuration *ionos.Configuration) *Provider {
+func NewProvider(domainFilter endpoint.DomainFilterInterface, configuration *ionos.Configuration) *Provider {
 	client := createClient(configuration)
 	prov := &Provider{
 		client:       &DNSClient{client: client, dryRun: configuration.DryRun},
