@@ -124,7 +124,7 @@ The webhook can be deployed locally with a kind cluster. As a prerequisite, you 
 - [Helm](https://helm.sh/ ) with the repos:
 
  ```shell
-  helm repo add bitnami https://charts.bitnami.com/bitnami
+  helm repo add external-dns https://kubernetes-sigs.github.io/external-dns
   helm repo add mockserver https://www.mock-server.com
   helm repo update
   ```
