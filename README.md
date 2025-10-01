@@ -29,7 +29,7 @@ kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE
 # create the helm values file
 cat <<EOF > external-dns-ionos-values.yaml
 image:
-  tag: v0.15.1
+  tag: v0.19.0
 
 # -- ExternalDNS Log level.
 logLevel: debug # reduce in production
@@ -48,7 +48,7 @@ provider:
   webhook:
     image:
       repository: ghcr.io/ionos-cloud/external-dns-ionos-webhook
-      tag: v0.8.0
+      tag: v0.11.0
       pullPolicy: IfNotPresent
     env:
     - name: LOG_LEVEL
@@ -71,7 +71,7 @@ provider:
 EOF
 
 # install external-dns with helm
-helm upgrade external-dns-ionos external-dns/external-dns --version 1.15.1 -f external-dns-ionos-values.yaml --install
+helm upgrade external-dns-ionos external-dns/external-dns --version 1.19.0 -f external-dns-ionos-values.yaml --install
 ```
 
 ### namespaced mode
