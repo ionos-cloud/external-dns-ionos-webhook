@@ -23,7 +23,7 @@ jobs:
       - name: Git Fetch
         run: git fetch --force --tags
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
       - name: Run Unit Tests
@@ -50,5 +50,5 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: v2.3.2
+          version: v2.12.4
           args: release --snapshot --clean --skip=publish
