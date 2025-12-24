@@ -7,7 +7,7 @@ GOARCH ?= $(shell go env GOARCH)
 GO_TEST = $(GO_TOOL) gotest.tools/gotestsum --format pkgname
 GOLANCI_LINT = $(GO_TOOL) github.com/golangci/golangci-lint/cmd/golangci-lint
 GOFUMPT = $(GO_TOOL) mvdan.cc/gofumpt
-GORELEASER = $(GO_TOOL) github.com/goreleaser/goreleaser/v2
+GORELEASER = goreleaser
 
 
 LICENCES_IGNORE_LIST = $(shell cat licences/licences-ignore-list.txt)
