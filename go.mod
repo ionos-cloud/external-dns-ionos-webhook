@@ -4,11 +4,11 @@ go 1.25.1
 
 require (
 	github.com/caarlos0/env/v8 v8.0.0
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.2.4
 	github.com/ionos-cloud/sdk-go-dns v1.4.0
 	github.com/ionos-developer/dns-sdk-go v0.0.5
 	github.com/prometheus/client_golang v1.23.2
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 	sigs.k8s.io/external-dns v0.20.0
 )
