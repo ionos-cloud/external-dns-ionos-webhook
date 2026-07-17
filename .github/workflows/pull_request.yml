@@ -23,7 +23,7 @@ jobs:
       - name: Git Fetch
         run: git fetch --force --tags
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
       - name: Run Unit Tests
