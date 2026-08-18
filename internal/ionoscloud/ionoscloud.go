@@ -39,8 +39,8 @@ const (
 )
 
 type DNSClient struct {
-	client *sdk.APIClient
-	dryRun bool
+	clientFactory clientFactory
+	dryRun        bool
 }
 
 type DNSService interface {
@@ -54,7 +54,11 @@ type DNSService interface {
 // GetAllRecords retrieve all records https://github.com/ionos-cloud/sdk-go-dns/blob/master/docs/api/RecordsApi.md#recordsget
 func (c *DNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.RecordReadList, error) {
 	log.Debugf("get all records with offset %d ...", offset)
-	records, _, err := c.client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
+	client, err := c.clientFactory.Create(ctx)
+	if err != nil {
+		return sdk.RecordReadList{}, fmt.Errorf("failed to create IONOS Cloud DNS client: %w", err)
+	}
+	records, _, err := client.RecordsApi.RecordsGet(ctx).Limit(recordReadLimit).Offset(offset).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
 		log.Errorf("failed to get all records: %v", err)
 		return records, err
@@ -70,7 +74,11 @@ func (c *DNSClient) GetAllRecords(ctx context.Context, offset int32) (sdk.Record
 func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name string) (sdk.RecordReadList, error) {
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordName, name)
 	logger.Debug("get records from zone by name ...")
-	records, _, err := c.client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).FilterName(name).
+	client, err := c.clientFactory.Create(ctx)
+	if err != nil {
+		return sdk.RecordReadList{}, fmt.Errorf("failed to create IONOS Cloud DNS client: %w", err)
+	}
+	records, _, err := client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneId).FilterName(name).
 		FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
 		logger.Errorf("failed to get records from zone by name: %v", err)
@@ -87,7 +95,11 @@ func (c *DNSClient) GetRecordsByZoneIdAndName(ctx context.Context, zoneId, name 
 // GetZones client get zones method
 func (c *DNSClient) GetZones(ctx context.Context, offset int32) (sdk.ZoneReadList, error) {
 	log.Debug("get all zones ...")
-	zones, _, err := c.client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
+	client, err := c.clientFactory.Create(ctx)
+	if err != nil {
+		return sdk.ZoneReadList{}, fmt.Errorf("failed to create IONOS Cloud DNS client: %w", err)
+	}
+	zones, _, err := client.ZonesApi.ZonesGet(ctx).Offset(offset).Limit(zoneReadLimit).FilterState(sdk.PROVISIONINGSTATE_AVAILABLE).Execute()
 	if err != nil {
 		log.Errorf("failed to get all zones: %v", err)
 		return zones, err
@@ -108,7 +120,11 @@ func (c *DNSClient) CreateRecord(ctx context.Context, zoneId string, record sdk.
 		WithField(logFieldRecordTTL, *recordProps.GetTtl())
 	logger.Debugf("creating record ...")
 	if !c.dryRun {
-		recordRead, _, err := c.client.RecordsApi.ZonesRecordsPost(ctx, zoneId).RecordCreate(record).Execute()
+		client, err := c.clientFactory.Create(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create IONOS Cloud DNS client: %w", err)
+		}
+		recordRead, _, err := client.RecordsApi.ZonesRecordsPost(ctx, zoneId).RecordCreate(record).Execute()
 		if err != nil {
 			logger.Errorf("failed to create record: %v", err)
 			return err
@@ -125,7 +141,11 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 	logger := log.WithField(logFieldZoneID, zoneId).WithField(logFieldRecordID, recordId)
 	logger.Debugf("deleting record: %v ...", recordId)
 	if !c.dryRun {
-		_, _, err := c.client.RecordsApi.ZonesRecordsDelete(ctx, zoneId, recordId).Execute()
+		client, err := c.clientFactory.Create(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create IONOS DNS client: %w", err)
+		}
+		_, _, err = client.RecordsApi.ZonesRecordsDelete(ctx, zoneId, recordId).Execute()
 		if err != nil {
 			logger.Errorf("failed to delete record: %v", err)
 			return err
@@ -148,15 +168,15 @@ type Provider struct {
 
 // NewProvider returns an instance of new provider
 func NewProvider(domainFilter endpoint.DomainFilterInterface, configuration *ionos.Configuration) *Provider {
-	client := createClient(configuration)
+	clientFactory := createClientFactory(configuration)
 	prov := &Provider{
-		client:       &DNSClient{client: client, dryRun: configuration.DryRun},
+		client:       &DNSClient{clientFactory: clientFactory, dryRun: configuration.DryRun},
 		domainFilter: domainFilter,
 	}
 	return prov
 }
 
-func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
+func createClientFactory(ionosConfig *ionos.Configuration) clientFactory {
 	jwtString := func() string {
 		split := strings.Split(ionosConfig.APIKey, ".")
 		if len(split) == 3 {
@@ -178,10 +198,8 @@ func createClient(ionosConfig *ionos.Configuration) *sdk.APIClient {
 		log.Warnf("*** Dry run is enabled, no changes will be made to ionos cloud DNS ***")
 	}
 
-	sdkConfig := sdk.NewConfiguration("", "", ionosConfig.APIKey, ionosConfig.APIEndpointURL)
-	sdkConfig.Debug = ionosConfig.Debug
-	apiClient := sdk.NewAPIClient(sdkConfig)
-	return apiClient
+	//TODO: refactor
+	return clientFactory{tokenProvider: NewCachedTokenProvider(ionosConfig.Username, ionosConfig.Password), ionosConfig: ionosConfig}
 }
 
 func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error) {
