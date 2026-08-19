@@ -52,8 +52,9 @@ func TestInit(t *testing.T) {
 		{
 			name:          "without api key you are not able to create provider",
 			config:        configuration.Config{},
-			expectedError: "reading ionos ionosConfig failed: env: environment variable \"IONOS_API_KEY\" should not be empty",
+			expectedError: "missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided",
 		},
+		// TODO add more test cases of missing username / password
 	}
 
 	for _, tc := range cases {

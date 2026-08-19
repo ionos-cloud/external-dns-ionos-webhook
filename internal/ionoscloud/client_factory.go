@@ -13,6 +13,13 @@ type clientFactory struct {
 	ionosConfig   *ionos.Configuration
 }
 
+func newClientFactory(ionosConfig *ionos.Configuration) *clientFactory {
+	return &clientFactory{
+		tokenProvider: newCachedTokenProvider(ionosConfig),
+		ionosConfig:   ionosConfig,
+	}
+}
+
 func (cf *clientFactory) Create(ctx context.Context) (*sdk.APIClient, error) {
 	if cf.ionosConfig.APIKey == "" {
 		sdkConfig := sdk.NewConfiguration("", "", cf.ionosConfig.APIKey, cf.ionosConfig.APIEndpointURL)

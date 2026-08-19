@@ -2,9 +2,16 @@ package ionoscloud
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionos"
 	ionoscloud_auth "github.com/ionos-cloud/sdk-go-auth"
 )
+
+var errTokenIsNilOrEmpty = errors.New("token is nil or empty")
 
 type TokenProvider interface {
 	GenerateToken(context.Context) (string, error)
@@ -12,21 +19,51 @@ type TokenProvider interface {
 
 type cachedTokenProvider struct {
 	client      *ionoscloud_auth.APIClient
-	cachedToken any
+	jwtParser   *jwt.Parser
+	cachedToken *jwt.Token
+	tokenTTL    time.Duration
 }
 
-func NewCachedTokenProvider(username, password string) TokenProvider {
-	return &cachedTokenProvider{client: ionoscloud_auth.NewAPIClient(ionoscloud_auth.NewConfiguration(username, password, "", ""))}
+func newCachedTokenProvider(cfg *ionos.Configuration) TokenProvider {
+	return &cachedTokenProvider{
+		client:    ionoscloud_auth.NewAPIClient(ionoscloud_auth.NewConfiguration(cfg.Username, cfg.Password, "", cfg.APIEndpointURL)),
+		jwtParser: jwt.NewParser(),
+	}
 }
 
 func (c *cachedTokenProvider) GenerateToken(ctx context.Context) (string, error) {
 	// TODO: make TTL configurable
-	token, _, err := c.client.TokensApi.TokensGenerate(ctx).Ttl(3600).Execute()
-	if err != nil {
-		return "", err
+	if c.cachedToken == nil {
+		if err := c.refresh(ctx); err != nil {
+			return "", err
+		}
+	} else {
+		// test if the token has expired
+		expiry, _ := c.cachedToken.Claims.GetExpirationTime()
+		if expiry.After(time.Now()) {
+			if err := c.refresh(ctx); err != nil {
+				return "", err
+			}
+		}
 	}
 
-	// TODO: parse token and store it
+	return c.cachedToken.Raw, nil
+}
 
-	return *token.Token, nil
+func (c *cachedTokenProvider) refresh(ctx context.Context) error {
+	tokenRawResponse, _, err := c.client.TokensApi.TokensGenerate(ctx).Ttl(3600).Execute()
+	if err != nil {
+		return fmt.Errorf("failed to request token from IONOS Cloud API: %w", err)
+	}
+
+	if tokenRawResponse.Token == nil || *tokenRawResponse.Token == "" {
+		return errTokenIsNilOrEmpty
+	}
+
+	c.cachedToken, _, err = c.jwtParser.ParseUnverified(*tokenRawResponse.Token, jwt.RegisteredClaims{})
+	if err != nil {
+		return fmt.Errorf("failed to process token: %w", err)
+	}
+
+	return nil
 }

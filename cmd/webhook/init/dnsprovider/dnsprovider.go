@@ -3,6 +3,7 @@ package dnsprovider
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
 )
+
+var errMissingCredentials = errors.New("missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided")
 
 type IONOSProviderFactory func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
 
@@ -72,12 +75,18 @@ func Init(config configuration.Config) (provider.Provider, error) {
 	if err := env.Parse(&ionosConfig); err != nil {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
+	if ionosConfig.APIKey == "" && (ionosConfig.Username == "" || ionosConfig.Password == "") {
+		return nil, errMissingCredentials
+	}
 	createProvider := detectProvider(&ionosConfig)
 	ionosProvider := createProvider(domainFilter, &ionosConfig)
 	return ionosProvider, nil
 }
 
 func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
+	if ionosConfig.APIKey == "" {
+		return IonosCloudProviderFactory
+	}
 	split := strings.Split(ionosConfig.APIKey, ".")
 	if len(split) == 3 {
 		tokenBytes, err := base64.RawStdEncoding.DecodeString(split[1])

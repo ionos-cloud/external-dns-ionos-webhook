@@ -39,7 +39,7 @@ const (
 )
 
 type DNSClient struct {
-	clientFactory clientFactory
+	clientFactory *clientFactory
 	dryRun        bool
 }
 
@@ -176,7 +176,7 @@ func NewProvider(domainFilter endpoint.DomainFilterInterface, configuration *ion
 	return prov
 }
 
-func createClientFactory(ionosConfig *ionos.Configuration) clientFactory {
+func createClientFactory(ionosConfig *ionos.Configuration) *clientFactory {
 	jwtString := func() string {
 		split := strings.Split(ionosConfig.APIKey, ".")
 		if len(split) == 3 {
@@ -199,7 +199,7 @@ func createClientFactory(ionosConfig *ionos.Configuration) clientFactory {
 	}
 
 	//TODO: refactor
-	return clientFactory{tokenProvider: NewCachedTokenProvider(ionosConfig.Username, ionosConfig.Password), ionosConfig: ionosConfig}
+	return newClientFactory(ionosConfig)
 }
 
 func (p *Provider) readAllRecords(ctx context.Context) ([]sdk.RecordRead, error) {
