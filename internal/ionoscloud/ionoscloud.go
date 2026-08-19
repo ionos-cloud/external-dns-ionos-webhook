@@ -198,7 +198,7 @@ func createClientFactory(ionosConfig *ionos.Configuration) *clientFactory {
 		log.Warnf("*** Dry run is enabled, no changes will be made to ionos cloud DNS ***")
 	}
 
-	//TODO: refactor
+	// TODO: refactor
 	return newClientFactory(ionosConfig)
 }
 
