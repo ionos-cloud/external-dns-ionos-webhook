@@ -33,15 +33,18 @@ func newCachedTokenProvider(cfg *ionos.Configuration) TokenProvider {
 }
 
 func (c *cachedTokenProvider) GenerateToken(ctx context.Context) (string, error) {
-	// TODO: make TTL configurable
 	if c.cachedToken == nil {
 		if err := c.refresh(ctx); err != nil {
 			return "", err
 		}
 	} else {
 		// test if the token has expired
-		expiry, _ := c.cachedToken.Claims.GetExpirationTime()
-		if expiry.After(time.Now()) {
+		expiry, err := c.cachedToken.Claims.GetExpirationTime()
+		if err != nil {
+			return "", fmt.Errorf("error checking token expiry: %w", err)
+		}
+
+		if expiry.Before(time.Now()) {
 			if err := c.refresh(ctx); err != nil {
 				return "", err
 			}
@@ -61,7 +64,7 @@ func (c *cachedTokenProvider) refresh(ctx context.Context) error {
 		return errTokenIsNilOrEmpty
 	}
 
-	c.cachedToken, _, err = c.jwtParser.ParseUnverified(*tokenRawResponse.Token, jwt.RegisteredClaims{})
+	c.cachedToken, _, err = c.jwtParser.ParseUnverified(*tokenRawResponse.Token, jwt.MapClaims{})
 	if err != nil {
 		return fmt.Errorf("failed to process token: %w", err)
 	}
