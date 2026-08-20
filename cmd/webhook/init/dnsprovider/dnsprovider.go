@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 
@@ -20,7 +21,11 @@ import (
 	"sigs.k8s.io/external-dns/provider"
 )
 
-var errMissingCredentials = errors.New("missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided")
+var (
+	errMissingCredentials = errors.New("missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided")
+	errInvalidTokenTTL    = errors.New("a token TTL must be between 1 hour and 1 year")
+	year, _               = time.ParseDuration("31536000")
+)
 
 type IONOSProviderFactory func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
 
@@ -77,6 +82,11 @@ func Init(config configuration.Config) (provider.Provider, error) {
 	}
 	if ionosConfig.APIKey == "" && (ionosConfig.Username == "" || ionosConfig.Password == "") {
 		return nil, errMissingCredentials
+	}
+	if ionosConfig.Username != "" && ionosConfig.Password != "" {
+		if ionosConfig.TokenTTL.Seconds() < time.Hour.Seconds() || ionosConfig.TokenTTL.Seconds() > year.Seconds() {
+			return nil, errInvalidTokenTTL
+		}
 	}
 	createProvider := detectProvider(&ionosConfig)
 	ionosProvider := createProvider(domainFilter, &ionosConfig)

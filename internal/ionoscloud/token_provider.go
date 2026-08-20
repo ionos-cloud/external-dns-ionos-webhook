@@ -28,6 +28,7 @@ func newCachedTokenProvider(cfg *ionos.Configuration) TokenProvider {
 	return &cachedTokenProvider{
 		client:    ionoscloud_auth.NewAPIClient(ionoscloud_auth.NewConfiguration(cfg.Username, cfg.Password, "", cfg.APIEndpointURL)),
 		jwtParser: jwt.NewParser(),
+		tokenTTL:  cfg.TokenTTL,
 	}
 }
 
@@ -51,7 +52,7 @@ func (c *cachedTokenProvider) GenerateToken(ctx context.Context) (string, error)
 }
 
 func (c *cachedTokenProvider) refresh(ctx context.Context) error {
-	tokenRawResponse, _, err := c.client.TokensApi.TokensGenerate(ctx).Ttl(3600).Execute()
+	tokenRawResponse, _, err := c.client.TokensApi.TokensGenerate(ctx).Ttl(int32(c.tokenTTL.Seconds())).Execute()
 	if err != nil {
 		return fmt.Errorf("failed to request token from IONOS Cloud API: %w", err)
 	}
