@@ -1,6 +1,6 @@
 # ExternalDNS - IONOS Webhook
 
-ExternalDNS is a Kubernetes add-on for automatically managing
+ExternalDNS is a Kubernetes controller for automatically managing
 Domain Name System (DNS) records for Kubernetes services by using different DNS providers.
 By default, Kubernetes manages DNS records internally,
 but ExternalDNS takes this functionality a step further by delegating the management of DNS records to an external DNS
@@ -8,8 +8,28 @@ provider such as IONOS.
 Therefore, the IONOS webhook allows to manage your
 IONOS domains inside your kubernetes cluster with [ExternalDNS](https://github.com/kubernetes-sigs/external-dns). 
 
-To use ExternalDNS with IONOS, you need your IONOS API key or token of the account managing
-your domains. For detailed technical instructions on how the IONOS webhook is deployed using [ExternalDNS for Kubernetes](https://kubernetes-sigs.github.io/external-dns/) helm repo, see [deployment instructions](#kubernetes-deployment).
+ For detailed technical instructions on how the IONOS webhook is deployed using [ExternalDNS for Kubernetes](https://kubernetes-sigs.github.io/external-dns/) helm repo, see [deployment instructions](#kubernetes-deployment).
+
+## Providers
+
+1. **IONOS Core:** 
+   * Official Page: [https://www.ionos.com/hosting/free-dns](https://www.ionos.com/hosting/free-dns)
+   * API docs: [https://developer.hosting.ionos.com/docs/dns](https://developer.hosting.ionos.com/docs/dns)
+2. **IONOS Cloud:** 
+   * Official Page: [https://cloud.ionos.com/network/cloud-dns](https://cloud.ionos.com/network/cloud-dns)
+   * API docs: [https://api.ionos.com/docs/dns/v1/](https://api.ionos.com/docs/dns/v1/)
+
+> [!NOTE]  
+> The provider is automatically detected based on the credentials.
+
+## Authentication Methods:
+
+1. **IONOS Core:** Only API Key authentication is supported
+2. **IONOS Cloud:** Both username/password and token authentication are supported. The username/password method has the advantage of not requiring the user to intervene periodically. If a token is used, it falls under the responsibility of the user to renew the token periodically (IONOS Cloud tokens can have a maximum ttl of 365 days). Regardless of the method used, it is highly recommended to scope the privileges to the DNS management only. This can be done by creating a new IAM user under your main contract, and scoping the privileges to "Access and manage DNS". More details on how to create a bot user can be found [here](https://github.com/ionos-cloud/cert-manager-webhook-ionos-cloud/blob/main/docs/create-bot-user.md)
+
+> [!IMPORTANT]  
+> It is not recommended to use the credentials of the root/Admin account. 
+
 
 ## Kubernetes Deployment
 
@@ -25,6 +45,9 @@ using the [charts for ExternalDNS](https://github.com/kubernetes-sigs/external-d
 helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
 
 kubectl create secret generic ionos-credentials --from-literal=api-key='<EXAMPLE_PLEASE_REPLACE>'
+# or, depending on the provider and the authentication method
+# only one of two commands in needed
+kubectl create secret generic ionos-credentials --from-literal=username='<BOT_USERNAME>' --from-literal=password='<BOT_PASSWORD>'
 
 # create the helm values file
 cat <<EOF > external-dns-ionos-values.yaml
@@ -58,6 +81,18 @@ provider:
         secretKeyRef:
           name: ionos-credentials
           key: api-key
+    # this is only valid for IONOS Cloud, if the username/password method is used.
+    - name: IONOS_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: ionos-credentials
+          key: username
+    # this is only valid for IONOS Cloud, if the username/password method is used.
+    - name: IONOS_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: ionos-credentials
+          key: password
     # The webhook server listens on localhost by default. Otherwise, you can set SERVER_HOST.
     - name: SERVER_PORT
       value: "8888" # default and recommended port for exposing webhook provider EPs
@@ -66,6 +101,8 @@ provider:
       value: "8080" # default and recommended port for exposing metrics and health EPs
     - name: IONOS_DEBUG
       value: "false" # change to "true" if you want see details of the http requests
+    - name: IONOS_TOKEN_TTL
+      value: "6000h" # allows configuring the refresh interval for the IONOS Cloud token. Defaults to 31536000s (1 year).
     - name: DRY_RUN
       value: "true" # set to "false" when you want to allow making changes to your DNS resources
 EOF
