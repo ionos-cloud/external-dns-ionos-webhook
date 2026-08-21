@@ -851,21 +851,16 @@ func createEndpointSlice(count int, modifier func(int) (string, string, endpoint
 }
 
 func TestDNSClient_GetAllRecords(t *testing.T) {
-
 }
 
 func TestDNSClient_GetRecordsByZoneIdAndName(t *testing.T) {
-
 }
 
 func TestDNSClient_GetZones(t *testing.T) {
-
 }
 
 func TestDNSClient_DeleteRecord(t *testing.T) {
-
 }
 
 func TestDNSClient_CreateRecord(t *testing.T) {
-
 }
