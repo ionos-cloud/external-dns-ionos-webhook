@@ -63,7 +63,7 @@ func TestCreate(t *testing.T) {
 			expectedGenerateTokenCalls: 1,
 		},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(tt *testing.T) {
 			tokenProvider := &mockTokenProvider{
 				err:   tc.givenGenerateTokenError,
 				token: tc.givenGeneratedToken,
@@ -73,15 +73,15 @@ func TestCreate(t *testing.T) {
 				ionosConfig:   tc.givenConfig,
 			}
 
-			apiClient, err := factory.Create(t.Context())
+			apiClient, err := factory.Create(tt.Context())
 			if tc.expectedError {
-				assert.EqualError(t, err, tc.expectedErrorMessage)
+				assert.EqualError(tt, err, tc.expectedErrorMessage)
 			} else if err != nil {
-				t.Fatalf("expected no error but got: %s", err.Error())
+				tt.Fatalf("expected no error but got: %s", err.Error())
 			} else {
-				assert.NotNil(t, apiClient)
-				assert.Equal(t, tc.expectedClientToken, apiClient.GetConfig().Token)
-				assert.Equal(t, tc.expectedGenerateTokenCalls, tokenProvider.calls)
+				assert.NotNil(tt, apiClient)
+				assert.Equal(tt, tc.expectedClientToken, apiClient.GetConfig().Token)
+				assert.Equal(tt, tc.expectedGenerateTokenCalls, tokenProvider.calls)
 			}
 		})
 	}
