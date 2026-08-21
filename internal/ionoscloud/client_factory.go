@@ -21,7 +21,7 @@ func newClientFactory(ionosConfig *ionos.Configuration) *clientFactory {
 }
 
 func (cf *clientFactory) Create(ctx context.Context) (*sdk.APIClient, error) {
-	if cf.ionosConfig.APIKey == "" {
+	if cf.ionosConfig.APIKey != "" {
 		sdkConfig := sdk.NewConfiguration("", "", cf.ionosConfig.APIKey, cf.ionosConfig.APIEndpointURL)
 		sdkConfig.Debug = cf.ionosConfig.Debug
 		return sdk.NewAPIClient(sdkConfig), nil
