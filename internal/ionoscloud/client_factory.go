@@ -11,6 +11,7 @@ import (
 type clientFactory struct {
 	tokenProvider TokenProvider
 	ionosConfig   *ionos.Configuration
+	apiClient     *sdk.APIClient
 }
 
 func newClientFactory(ionosConfig *ionos.Configuration) *clientFactory {
@@ -22,17 +23,24 @@ func newClientFactory(ionosConfig *ionos.Configuration) *clientFactory {
 
 func (cf *clientFactory) Create(ctx context.Context) (*sdk.APIClient, error) {
 	if cf.ionosConfig.APIKey != "" {
-		sdkConfig := sdk.NewConfiguration("", "", cf.ionosConfig.APIKey, cf.ionosConfig.APIEndpointURL)
-		sdkConfig.Debug = cf.ionosConfig.Debug
-		return sdk.NewAPIClient(sdkConfig), nil
+		if cf.apiClient == nil {
+			cf.initClient(cf.ionosConfig.APIKey)
+		}
+	} else {
+		token, err := cf.tokenProvider.GenerateToken(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate token: %w", err)
+		}
+		if cf.apiClient == nil || cf.apiClient.GetConfig().Token != token {
+			cf.initClient(token)
+		}
 	}
 
-	token, err := cf.tokenProvider.GenerateToken(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %w", err)
-	}
+	return cf.apiClient, nil
+}
+
+func (cf *clientFactory) initClient(token string) {
 	sdkConfig := sdk.NewConfiguration("", "", token, cf.ionosConfig.APIEndpointURL)
 	sdkConfig.Debug = cf.ionosConfig.Debug
-	apiClient := sdk.NewAPIClient(sdkConfig)
-	return apiClient, nil
+	cf.apiClient = sdk.NewAPIClient(sdkConfig)
 }

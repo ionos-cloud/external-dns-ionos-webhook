@@ -24,7 +24,7 @@ import (
 var (
 	errMissingCredentials = errors.New("missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided")
 	errInvalidTokenTTL    = errors.New("a token TTL must be between 1 hour and 1 year")
-	year, _               = time.ParseDuration("31536000s")
+	year                  = 8760 * time.Hour
 )
 
 type IONOSProviderFactory func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
@@ -76,20 +76,20 @@ func Init(config configuration.Config) (provider.Provider, error) {
 		createMsg += "no kind of domain filters"
 	}
 	log.Info(createMsg)
-	ionosConfig := ionos.Configuration{}
-	if err := env.Parse(&ionosConfig); err != nil {
+	ionosConfig := &ionos.Configuration{}
+	if err := env.Parse(ionosConfig); err != nil {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
 	if ionosConfig.APIKey == "" && (ionosConfig.Username == "" || ionosConfig.Password == "") {
 		return nil, errMissingCredentials
 	}
-	if ionosConfig.Username != "" && ionosConfig.Password != "" {
-		if ionosConfig.TokenTTL.Seconds() < time.Hour.Seconds() || ionosConfig.TokenTTL.Seconds() > year.Seconds() {
+	if ionosConfig.APIKey == "" && isUsernamePasswordAuthentication(ionosConfig) {
+		if ionosConfig.TokenTTL < time.Hour || year < ionosConfig.TokenTTL {
 			return nil, errInvalidTokenTTL
 		}
 	}
-	createProvider := detectProvider(&ionosConfig)
-	ionosProvider := createProvider(domainFilter, &ionosConfig)
+	createProvider := detectProvider(ionosConfig)
+	ionosProvider := createProvider(domainFilter, ionosConfig)
 	return ionosProvider, nil
 }
 
@@ -111,4 +111,8 @@ func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
 		return IonosCloudProviderFactory
 	}
 	return IonosCoreProviderFactory
+}
+
+func isUsernamePasswordAuthentication(config *ionos.Configuration) bool {
+	return config.Username != "" && config.Password != ""
 }

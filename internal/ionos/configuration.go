@@ -22,7 +22,7 @@ type Configuration struct {
 	TokenTTL time.Duration `env:"IONOS_TOKEN_TTL" envDefault:"31536000s"`
 
 	// APIEndpointURL is the base API URL
-	// if left empty, it set automatically based on the detected provider
+	// if left empty, it is set automatically based on the detected provider
 	APIEndpointURL string `env:"IONOS_API_URL"`
 
 	// AuthHeader is the Authentication Header name, set automatically based on the detected provider

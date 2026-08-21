@@ -44,7 +44,10 @@ func (c *cachedTokenProvider) GenerateToken(ctx context.Context) (string, error)
 			return "", fmt.Errorf("error checking token expiry: %w", err)
 		}
 
-		if expiry.Before(time.Now()) {
+		// the .Add(-1 * time.Minute) was suggested by copilot
+		// to make sure the token does not expire between the checks
+		// we substract a 1 minute as a safety window
+		if expiry.Before(time.Now().Add(-1 * time.Minute)) {
 			if err := c.refresh(ctx); err != nil {
 				return "", err
 			}

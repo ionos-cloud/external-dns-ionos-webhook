@@ -23,7 +23,6 @@ func TestGenerateToken(t *testing.T) {
 	token.Raw = validToken
 	expired := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{"subject": "test", "exp": float64(time.Now().Add(-time.Hour).Unix())})
-	assert.NoError(t, err)
 
 	for _, tc := range []struct {
 		name                 string
@@ -45,7 +44,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> no cached token -> ionos api ok -> token nil",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{}`))
+				_, _ = w.Write([]byte(`{}`))
 				w.WriteHeader(http.StatusOK)
 			},
 			expectedError:        true,
@@ -55,7 +54,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> no cached token -> ionos api ok -> token empty",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{"token":""}`))
+				_, _ = w.Write([]byte(`{"token":""}`))
 				w.WriteHeader(http.StatusOK)
 			},
 			expectedError:        true,
@@ -65,7 +64,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> no cached token -> ionos api ok -> parse token failure",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{"token":"not-a-jwt-token"}`))
+				_, _ = w.Write([]byte(`{"token":"not-a-jwt-token"}`))
 				w.WriteHeader(http.StatusOK)
 			},
 			expectedError:        true,
@@ -75,7 +74,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> no cached token -> happy path",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, validToken)))
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, validToken)))
 				w.WriteHeader(http.StatusOK)
 			},
 			expectedToken: validToken,
@@ -93,7 +92,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> cached token -> token expired -> token nil",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{}`))
+				_, _ = w.Write([]byte(`{}`))
 				w.WriteHeader(http.StatusOK)
 			},
 			givenCachedToken:     expired,
@@ -104,7 +103,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> cached token -> token expired -> token nil",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{"token":""}`))
+				_, _ = w.Write([]byte(`{"token":""}`))
 				w.WriteHeader(http.StatusOK)
 			},
 			givenCachedToken:     expired,
@@ -115,7 +114,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> cached token -> token expired -> parse token error",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(`{"token":"not-a-jwt-token"}`))
+				_, _ = w.Write([]byte(`{"token":"not-a-jwt-token"}`))
 				w.WriteHeader(http.StatusOK)
 			},
 			givenCachedToken:     expired,
@@ -126,7 +125,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> cached token -> token expired -> happy path",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, validToken)))
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, validToken)))
 				w.WriteHeader(http.StatusOK)
 			},
 			givenCachedToken: expired,

@@ -143,7 +143,7 @@ func (c *DNSClient) DeleteRecord(ctx context.Context, zoneId string, recordId st
 	if !c.dryRun {
 		client, err := c.clientFactory.Create(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to create IONOS DNS client: %w", err)
+			return fmt.Errorf("failed to create IONOS Cloud DNS client: %w", err)
 		}
 		_, _, err = client.RecordsApi.ZonesRecordsDelete(ctx, zoneId, recordId).Execute()
 		if err != nil {
