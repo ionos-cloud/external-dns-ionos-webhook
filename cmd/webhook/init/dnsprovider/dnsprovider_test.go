@@ -50,11 +50,58 @@ func TestInit(t *testing.T) {
 			providerType: "cloud",
 		},
 		{
-			name:          "without api key you are not able to create provider",
+			name:          "without api key and no username/password you are not able to create provider",
 			config:        configuration.Config{},
 			expectedError: "missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided",
 		},
-		// TODO add more test cases of missing username / password
+		{
+			name:   "without api key and empty password you are not able to create provider",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_USERNAME": "username",
+				"IONOS_PASSWORD": "",
+			},
+			expectedError: "missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided",
+		},
+		{
+			name:   "without api key and empty username you are not able to create provider",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_USERNAME": "",
+				"IONOS_PASSWORD": "password",
+			},
+			expectedError: "missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided",
+		},
+		{
+			name:   "with username and password and invalid TTL (below lower bound), returns error ",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_USERNAME":  "username",
+				"IONOS_PASSWORD":  "password",
+				"IONOS_TOKEN_TTL": "20s",
+			},
+			expectedError: "a token TTL must be between 1 hour and 1 year",
+		},
+		{
+			name:   "with username and password and invalid TTL (above upper bound), returns error",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_USERNAME":  "username",
+				"IONOS_PASSWORD":  "password",
+				"IONOS_TOKEN_TTL": "41536000s",
+			},
+			expectedError: "a token TTL must be between 1 hour and 1 year",
+		},
+		{
+			name:   "with username and password and valid TTL, creates cloud provider",
+			config: configuration.Config{},
+			env: map[string]string{
+				"IONOS_USERNAME":  "username",
+				"IONOS_PASSWORD":  "password",
+				"IONOS_TOKEN_TTL": "720h",
+			},
+			providerType: "cloud",
+		},
 	}
 
 	for _, tc := range cases {

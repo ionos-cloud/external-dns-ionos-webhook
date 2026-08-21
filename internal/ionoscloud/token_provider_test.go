@@ -18,12 +18,11 @@ func TestGenerateToken(t *testing.T) {
 		jwt.MapClaims{"subject": "test", "exp": float64(time.Now().Add(time.Hour).Unix())})
 	validToken, err := token.SignedString([]byte("key"))
 	assert.NoError(t, err)
-	// normally this populated when calling parse
+	// normally this populated when calling jwt.Parse
 	// but since we do not parse here, it's assigned manually
 	token.Raw = validToken
 	expired := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{"subject": "test", "exp": float64(time.Now().Add(-time.Hour).Unix())})
-	//expiredToken, err := token.SignedString([]byte("key"))
 	assert.NoError(t, err)
 
 	for _, tc := range []struct {
