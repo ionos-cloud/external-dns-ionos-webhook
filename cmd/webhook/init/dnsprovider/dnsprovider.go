@@ -24,7 +24,7 @@ import (
 var (
 	errMissingCredentials = errors.New("missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided")
 	errInvalidTokenTTL    = errors.New("a token TTL must be between 1 hour and 1 year")
-	year, _               = time.ParseDuration("31536000")
+	year, _               = time.ParseDuration("31536000s")
 )
 
 type IONOSProviderFactory func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
