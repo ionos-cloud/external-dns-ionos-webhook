@@ -14,7 +14,7 @@ import (
 var errTokenIsNilOrEmpty = errors.New("token is nil or empty")
 
 type TokenProvider interface {
-	GenerateToken(context.Context) (string, error)
+	GetToken(context.Context) (string, error)
 }
 
 type cachedTokenProvider struct {
@@ -32,7 +32,7 @@ func newCachedTokenProvider(cfg *ionos.Configuration) TokenProvider {
 	}
 }
 
-func (c *cachedTokenProvider) GenerateToken(ctx context.Context) (string, error) {
+func (c *cachedTokenProvider) GetToken(ctx context.Context) (string, error) {
 	if c.cachedToken == nil {
 		if err := c.refresh(ctx); err != nil {
 			return "", err

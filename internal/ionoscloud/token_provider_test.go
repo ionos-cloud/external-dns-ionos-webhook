@@ -154,7 +154,7 @@ func TestGenerateToken(t *testing.T) {
 			}
 			tokenProvider.cachedToken = tc.givenCachedToken
 
-			token, err := tokenProvider.GenerateToken(tt.Context())
+			token, err := tokenProvider.GetToken(tt.Context())
 			if tc.expectedError {
 				assert.EqualError(tt, err, tc.expectedErrorMessage)
 			}

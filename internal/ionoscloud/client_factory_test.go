@@ -15,7 +15,7 @@ type mockTokenProvider struct {
 	err   error
 }
 
-func (tp *mockTokenProvider) GenerateToken(ctx context.Context) (string, error) {
+func (tp *mockTokenProvider) GetToken(ctx context.Context) (string, error) {
 	tp.calls++
 	return tp.token, tp.err
 }

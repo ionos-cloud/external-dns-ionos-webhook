@@ -27,7 +27,7 @@ func (cf *clientFactory) Create(ctx context.Context) (*sdk.APIClient, error) {
 			cf.initClient(cf.ionosConfig.APIKey)
 		}
 	} else {
-		token, err := cf.tokenProvider.GenerateToken(ctx)
+		token, err := cf.tokenProvider.GetToken(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate token: %w", err)
 		}
