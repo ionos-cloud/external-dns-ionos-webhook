@@ -3,9 +3,11 @@ package dnsprovider
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ionos-cloud/external-dns-ionos-webhook/internal/ionoscloud"
 
@@ -17,6 +19,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/external-dns/endpoint"
 	"sigs.k8s.io/external-dns/provider"
+)
+
+var (
+	errMissingCredentials = errors.New("missing credentials: either IONOS_API_KEY or IONOS_USERNAME and IONOS_PASSWORD should be provided")
+	errInvalidTokenTTL    = errors.New("a token TTL must be between 1 hour and 1 year")
+	year                  = 8760 * time.Hour
 )
 
 type IONOSProviderFactory func(domainFilter *endpoint.DomainFilter, ionosConfig *ionos.Configuration) provider.Provider
@@ -68,16 +76,27 @@ func Init(config configuration.Config) (provider.Provider, error) {
 		createMsg += "no kind of domain filters"
 	}
 	log.Info(createMsg)
-	ionosConfig := ionos.Configuration{}
-	if err := env.Parse(&ionosConfig); err != nil {
+	ionosConfig := &ionos.Configuration{}
+	if err := env.Parse(ionosConfig); err != nil {
 		return nil, fmt.Errorf("reading ionos ionosConfig failed: %v", err)
 	}
-	createProvider := detectProvider(&ionosConfig)
-	ionosProvider := createProvider(domainFilter, &ionosConfig)
+	if ionosConfig.APIKey == "" && (ionosConfig.Username == "" || ionosConfig.Password == "") {
+		return nil, errMissingCredentials
+	}
+	if ionosConfig.APIKey == "" && isUsernamePasswordAuthentication(ionosConfig) {
+		if ionosConfig.TokenTTL < time.Hour || year < ionosConfig.TokenTTL {
+			return nil, errInvalidTokenTTL
+		}
+	}
+	createProvider := detectProvider(ionosConfig)
+	ionosProvider := createProvider(domainFilter, ionosConfig)
 	return ionosProvider, nil
 }
 
 func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
+	if ionosConfig.APIKey == "" {
+		return IonosCloudProviderFactory
+	}
 	split := strings.Split(ionosConfig.APIKey, ".")
 	if len(split) == 3 {
 		tokenBytes, err := base64.RawStdEncoding.DecodeString(split[1])
@@ -92,4 +111,8 @@ func detectProvider(ionosConfig *ionos.Configuration) IONOSProviderFactory {
 		return IonosCloudProviderFactory
 	}
 	return IonosCoreProviderFactory
+}
+
+func isUsernamePasswordAuthentication(config *ionos.Configuration) bool {
+	return config.Username != "" && config.Password != ""
 }
