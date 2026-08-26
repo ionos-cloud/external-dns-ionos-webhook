@@ -26,7 +26,7 @@ type cachedTokenProvider struct {
 
 func newCachedTokenProvider(cfg *ionos.Configuration) TokenProvider {
 	return &cachedTokenProvider{
-		client:    ionoscloud_auth.NewAPIClient(ionoscloud_auth.NewConfiguration(cfg.Username, cfg.Password, "", cfg.APIEndpointURL)),
+		client:    ionoscloud_auth.NewAPIClient(ionoscloud_auth.NewConfiguration(cfg.Username, cfg.Password, "", cfg.AuthAPIEndpointURL)),
 		jwtParser: jwt.NewParser(),
 		tokenTTL:  cfg.TokenTTL,
 	}

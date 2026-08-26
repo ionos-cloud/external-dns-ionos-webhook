@@ -25,6 +25,10 @@ type Configuration struct {
 	// if left empty, it is set automatically based on the detected provider
 	APIEndpointURL string `env:"IONOS_API_URL"`
 
+	// AuthAPIEndpointURL is the base API URL for the authentication API
+	// it is used with the username/password method to obtain the token
+	AuthAPIEndpointURL string `env:"IONOS_AUTH_API_URL" envDefault:"https://api.ionos.com/auth/v1"`
+
 	// AuthHeader is the Authentication Header name, set automatically based on the detected provider
 	AuthHeader string `env:"IONOS_AUTH_HEADER"`
 
