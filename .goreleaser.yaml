@@ -59,7 +59,6 @@ docker_signs:
   - cmd: cosign
     args:
       - sign
-      - --tlog-upload=false
       - --key
       - env://COSIGN_PRIVATE_KEY
       - "${artifact}@${digest}"
