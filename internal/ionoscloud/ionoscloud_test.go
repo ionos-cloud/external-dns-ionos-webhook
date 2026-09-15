@@ -278,6 +278,26 @@ func TestApplyChanges(t *testing.T) {
 			expectedRecordsDeleted: nil,
 		},
 		{
+			name: "create a SRV record with priority, weight, port and host in target",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "a.de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(0, 0, 0, nil),
+			},
+			whenChanges: &plan.Changes{
+				Create: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "_caldavs._tcp.a.de", "SRV", endpoint.TTL(3600), []string{"10 1 443 dav.a.de."}
+				}),
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "_caldavs._tcp", "SRV", int32(3600), "1 443 dav.a.de.", 10
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
 			name: "create a MX record in a blank zone",
 			givenZones: createZoneReadList(1, func(i int) (string, string) {
 				return deZoneId, "a.de"
@@ -522,6 +542,88 @@ func TestApplyChanges(t *testing.T) {
 			},
 			expectedRecordsDeleted: map[string][]string{
 				deZoneId: {"0"},
+			},
+		},
+		{
+			name: "delete a MX record whose priority is stored in its own field",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(1, 0, 10, func(i int) (string, string, string, int32, string) {
+					return "a", "a.de", "MX", 300, "mail.a.de"
+				}),
+			},
+			whenChanges: &plan.Changes{
+				Delete: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(300), []string{"10 mail.a.de"}
+				}),
+			},
+			expectedRecordsDeleted: map[string][]string{
+				deZoneId: {"0"},
+			},
+		},
+		{
+			name: "delete a SRV record whose priority is stored in its own field",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(1, 0, 10, func(i int) (string, string, string, int32, string) {
+					return "_caldavs._tcp", "_caldavs._tcp.de", "SRV", 3600, "1 443 dav.de."
+				}),
+			},
+			whenChanges: &plan.Changes{
+				Delete: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "_caldavs._tcp.de", "SRV", endpoint.TTL(3600), []string{"10 1 443 dav.de."}
+				}),
+			},
+			expectedRecordsDeleted: map[string][]string{
+				deZoneId: {"0"},
+			},
+		},
+		{
+			name: "delete a MX record with a different priority, deletes nothing",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(1, 0, 10, func(i int) (string, string, string, int32, string) {
+					return "a", "a.de", "MX", 300, "mail.a.de"
+				}),
+			},
+			whenChanges: &plan.Changes{
+				Delete: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(300), []string{"20 mail.a.de"}
+				}),
+			},
+			expectedRecordsDeleted: nil,
+		},
+		{
+			name: "update the priority of a MX record",
+			givenZones: createZoneReadList(1, func(i int) (string, string) {
+				return deZoneId, "de"
+			}),
+			givenZoneRecords: map[string]sdk.RecordReadList{
+				deZoneId: createRecordReadList(1, 0, 10, func(i int) (string, string, string, int32, string) {
+					return "a", "a.de", "MX", 300, "mail.a.de"
+				}),
+			},
+			whenChanges: &plan.Changes{
+				UpdateOld: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(300), []string{"10 mail.a.de"}
+				}),
+				UpdateNew: createEndpointSlice(1, func(i int) (string, string, endpoint.TTL, []string) {
+					return "a.de", "MX", endpoint.TTL(300), []string{"20 mail.a.de"}
+				}),
+			},
+			expectedRecordsDeleted: map[string][]string{
+				deZoneId: {"0"},
+			},
+			expectedRecordsCreated: map[string][]sdk.RecordCreate{
+				deZoneId: createRecordCreateSlice(1, func(i int) (string, string, int32, string, int32) {
+					return "a", "MX", int32(300), "mail.a.de", 20
+				}),
 			},
 		},
 		{
