@@ -66,6 +66,11 @@ jobs:
         run: scripts/deploy_on_kind.sh
       - name: Run acceptance tests
         run: scripts/acceptance-tests.sh
+      - name: Dump external-dns/webhook logs on failure
+        if: failure()
+        run: |
+          kubectl get pods -n default -o wide
+          kubectl logs deployment/external-dns-ionos -n default --all-containers --prefix --tail=-1
       - name: Upload hurl report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
