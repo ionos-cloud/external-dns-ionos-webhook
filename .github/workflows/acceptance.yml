@@ -70,7 +70,9 @@ jobs:
         if: failure()
         run: |
           kubectl get pods -n default -o wide
+          kubectl describe pod -n default -l app.kubernetes.io/instance=external-dns-ionos
           kubectl logs deployment/external-dns-ionos -n default --all-containers --prefix --tail=-1
+          kubectl logs deployment/external-dns-ionos -n default -c external-dns --previous --tail=-1 || true
       - name: Upload hurl report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
