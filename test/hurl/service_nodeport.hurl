@@ -91,13 +91,18 @@ getZoneExpectationId : jsonpath "$[0].id"
 
 
 
-# get node ip
-GET {{k8s_api_url}}/api/v1/nodes
+# get the ingress-nginx-controller service's cluster IP.
+# The kind provider manifest deploys this Service as type LoadBalancer (it has no
+# NodePort in kind), so external-dns's `internal-hostname` annotation handling
+# (which always requests the cluster-internal target) resolves to the Service's
+# ClusterIP rather than a node IP - this must match what external-dns actually
+# publishes, not the node's address.
+GET {{k8s_api_url}}/api/v1/namespaces/ingress-nginx/services/ingress-nginx-controller
 Content-Type: application/json
 
 HTTP/1.1 200
 [Captures]
-node_ip: jsonpath "$.items[0].status.addresses[?(@.type=='InternalIP')].address"
+node_ip: jsonpath "$.spec.clusterIP"
 
 
 # create A record 
