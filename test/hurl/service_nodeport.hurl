@@ -278,8 +278,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: true
-retry-interval: 6000
-retry: 10
+retry-interval: 5000
+retry: 24
 
 {
     "expectationId": {
