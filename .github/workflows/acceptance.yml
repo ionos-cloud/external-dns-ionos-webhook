@@ -1,0 +1,73 @@
+name: Acceptance Tests (kind)
+
+on:
+  pull_request:
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'deployments/**'
+      - 'scripts/**'
+      - 'test/hurl/**'
+      - 'Dockerfile'
+      - 'localbuild.Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+  push:
+    branches:
+      - main
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'deployments/**'
+      - 'scripts/**'
+      - 'test/hurl/**'
+      - 'Dockerfile'
+      - 'localbuild.Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: 'go.mod'
+      - name: Setup kind cluster
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          install_only: true
+      - name: Setup Helm
+        uses: Azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - name: Install hurl
+        run: |
+          curl -sSL -o /tmp/hurl.deb https://github.com/Orange-OpenSource/hurl/releases/download/8.0.1/hurl_8.0.1_amd64.deb
+          echo "e76e6c0957f83f9b761416452871554d0f068384b6cd004bff82dd8795c62225  /tmp/hurl.deb" | sha256sum -c -
+          sudo dpkg -i /tmp/hurl.deb
+      - name: Add helm repos
+        run: |
+          helm repo add mockserver https://www.mock-server.com/mockserver-helm
+          helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+          helm repo update
+      - name: Deploy on kind
+        run: scripts/deploy_on_kind.sh
+      - name: Run acceptance tests
+        run: scripts/acceptance-tests.sh
+      - name: Upload hurl report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: hurl-acceptance-report
+          path: ./build/reports/hurl/**

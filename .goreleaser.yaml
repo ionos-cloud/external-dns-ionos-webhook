@@ -52,6 +52,9 @@ checksum:
   disable: false
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
 
+sboms:
+  - artifacts: archive
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
@@ -59,8 +62,6 @@ docker_signs:
   - cmd: cosign
     args:
       - sign
-      - --key
-      - env://COSIGN_PRIVATE_KEY
       - "${artifact}@${digest}"
       - --yes
     artifacts: images

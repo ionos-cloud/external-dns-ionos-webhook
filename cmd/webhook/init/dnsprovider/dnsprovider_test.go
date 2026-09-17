@@ -116,10 +116,11 @@ func TestInit(t *testing.T) {
 			}
 			assert.NoErrorf(t, err, "error creating provider")
 			assert.NotNil(t, dnsProvider)
-			if tc.providerType == "core" {
+			switch tc.providerType {
+			case "core":
 				_, ok := dnsProvider.(*ionoscore.Provider)
 				assert.True(t, ok, "provider is not of type ionoscore.Provider")
-			} else if tc.providerType == "cloud" {
+			case "cloud":
 				_, ok := dnsProvider.(*ionoscloud.Provider)
 				assert.True(t, ok, "provider is not of type ionoscloud.Provider")
 			}
