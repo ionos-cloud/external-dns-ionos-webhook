@@ -10,6 +10,8 @@ logLevel: debug
 
 namespaced: false
 
+policy: sync
+
 provider:
   name: webhook
   webhook:
