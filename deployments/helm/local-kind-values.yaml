@@ -12,6 +12,9 @@ namespaced: false
 
 policy: sync
 
+interval: 15s
+triggerLoopOnEvent: true
+
 provider:
   name: webhook
   webhook:

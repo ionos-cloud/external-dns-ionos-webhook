@@ -90,3 +90,4 @@ printf "Pushing image...\n"
 make docker-push
 
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install
+kubectl rollout status deployment/$HELM_RELEASE_NAME --timeout=120s
