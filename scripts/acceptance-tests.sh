@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
-export HURL_k8s_api_url=http://localhost:8070
-export HURL_dns_mockserver_url=http://dns-mockserver.127.0.0.1.nip.io
-export HURL_zone_id="11af3414-ebba-11e9-8df5-66fbe8zoneid"
-export HURL_record_id="11af3414-ebba-11e9-8df5-66fbrecordid"
+k8s_api_url=http://localhost:8070
+dns_mockserver_url=http://dns-mockserver.127.0.0.1.nip.io
+zone_id="11af3414-ebba-11e9-8df5-66fbe8zoneid"
+record_id="11af3414-ebba-11e9-8df5-66fbrecordid"
+
+HURL_VARS=(
+  --variable "k8s_api_url=$k8s_api_url"
+  --variable "dns_mockserver_url=$dns_mockserver_url"
+  --variable "zone_id=$zone_id"
+  --variable "record_id=$record_id"
+)
 
 kubectl proxy --port=8070 &
 pid=$!
@@ -11,7 +18,7 @@ pid=$!
 cleanup() {
   exitCode=$?
   echo "exit code: $exitCode, cleaning up...now"
-  hurl test/hurl/service_nodeport_cleanup.hurl --test
+  hurl "${HURL_VARS[@]}" test/hurl/service_nodeport_cleanup.hurl --test
   kill $pid
   exit $exitCode
 }
@@ -23,6 +30,6 @@ set -e
 sleep 2
 
 mkdir -p build/reports/hurl
-hurl test/hurl/service_nodeport.hurl --test --report-html build/reports/hurl/ --report-junit build/reports/hurl/junit.xml
+hurl "${HURL_VARS[@]}" test/hurl/service_nodeport.hurl --test --report-html build/reports/hurl/ --report-junit build/reports/hurl/junit.xml
 
 
