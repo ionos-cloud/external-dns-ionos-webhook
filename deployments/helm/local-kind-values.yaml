@@ -15,6 +15,11 @@ policy: sync
 interval: 15s
 triggerLoopOnEvent: true
 
+# a resource-constrained CI runner can make the initial informer sync slower
+# than external-dns's 30s default, causing a fatal "context deadline exceeded"
+extraArgs:
+  - --request-timeout=120s
+
 provider:
   name: webhook
   webhook:
