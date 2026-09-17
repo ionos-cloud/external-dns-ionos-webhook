@@ -297,8 +297,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: true
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
@@ -316,8 +316,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
@@ -336,8 +336,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
@@ -356,8 +356,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
