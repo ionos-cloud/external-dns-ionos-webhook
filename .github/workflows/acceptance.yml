@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Setup go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
@@ -58,7 +60,6 @@ jobs:
           sudo dpkg -i /tmp/hurl.deb
       - name: Add helm repos
         run: |
-          helm repo add mockserver https://www.mock-server.com/mockserver-helm
           helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
           helm repo update
       - name: Deploy on kind
