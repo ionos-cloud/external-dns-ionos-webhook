@@ -12,6 +12,7 @@ on:
       - 'localbuild.Dockerfile'
       - 'go.mod'
       - 'go.sum'
+      - 'Makefile'
   push:
     branches:
       - main
@@ -25,6 +26,7 @@ on:
       - 'localbuild.Dockerfile'
       - 'go.mod'
       - 'go.sum'
+      - 'Makefile'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

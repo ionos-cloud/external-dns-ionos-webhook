@@ -134,15 +134,16 @@ See [here](./cmd/webhook/init/configuration/configuration.go) for all available 
 
 ## Verify the image resource integrity
 
-All official webhooks provided by IONOS are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/).
-The Cosign public key can be found in the [cosign.pub](./cosign.pub) file.
-
-Note: Due to the early development stage of the webhook, the image is not yet signed
-by [sigstores transparency log](https://github.com/sigstore/rekor).
+All official webhooks provided by IONOS are signed using [Cosign](https://docs.sigstore.dev/cosign/overview/)
+in keyless mode: the release workflow signs images using its GitHub Actions OIDC identity instead of a
+long-lived private key, and the signature is recorded in the [Rekor transparency log](https://github.com/sigstore/rekor).
 
 ```shell
 export RELEASE_VERSION=latest
-cosign verify --insecure-ignore-tlog --key cosign.pub ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
+cosign verify \
+  --certificate-identity-regexp "^https://github.com/ionos-cloud/external-dns-ionos-webhook/.github/workflows/on_tag.yml@refs/tags/.*$" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/ionos-cloud/external-dns-ionos-webhook:$RELEASE_VERSION
 ```
 
 ### Metrics

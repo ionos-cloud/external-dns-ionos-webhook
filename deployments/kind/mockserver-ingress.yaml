@@ -3,8 +3,6 @@ kind: Ingress
 metadata:
   name: mockserver
   namespace: mockserver
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
