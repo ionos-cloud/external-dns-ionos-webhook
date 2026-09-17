@@ -97,7 +97,7 @@ Content-Type: application/json
 
 HTTP/1.1 200
 [Captures]
-node_ip: jsonpath "$.items[0].status.addresses[?(@.type=='InternalIP')].address" nth 0
+node_ip: jsonpath "$.items[0].status.addresses[?(@.type=='InternalIP')].address"
 
 
 # create A record 
