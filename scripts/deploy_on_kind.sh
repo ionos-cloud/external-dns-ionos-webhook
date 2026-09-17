@@ -65,6 +65,7 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     printf "Installing dns mock server...\n"
     helm upgrade --install --create-namespace --namespace mockserver --set app.serverPort=1080 --set app.logLevel=INFO mockserver oci://ghcr.io/mock-server/charts/mockserver
     sleep $KIND_CLUSTER_WAIT
+    kubectl apply -f ./deployments/kind/mockserver-ingress.yaml
     kubectl port-forward svc/mockserver -n mockserver 1080:1080 &
     sleep 20
 
