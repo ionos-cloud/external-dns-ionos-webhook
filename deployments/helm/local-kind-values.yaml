@@ -12,13 +12,19 @@ namespaced: false
 
 policy: sync
 
+# the "service" source always creates a core v1.Endpoints informer for
+# headless-service support, but the chart's default ClusterRole only
+# grants discovery.k8s.io/endpointslices, not the legacy endpoints
+# resource - without this the informer's initial list is Forbidden and
+# WaitForCacheSync fatally times out after 60s
+rbac:
+  additionalPermissions:
+    - apiGroups: [""]
+      resources: ["endpoints"]
+      verbs: ["get", "watch", "list"]
+
 interval: 15s
 triggerLoopOnEvent: true
-
-# a resource-constrained CI runner can make the initial informer sync slower
-# than external-dns's 30s default, causing a fatal "context deadline exceeded"
-extraArgs:
-  - --request-timeout=120s
 
 provider:
   name: webhook
