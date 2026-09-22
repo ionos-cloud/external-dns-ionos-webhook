@@ -74,7 +74,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> no cached token -> happy path",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, validToken)))
+				_, _ = fmt.Fprintf(w, `{"token":"%s"}`, validToken)
 				w.WriteHeader(http.StatusOK)
 			},
 			expectedToken: validToken,
@@ -125,7 +125,7 @@ func TestGenerateToken(t *testing.T) {
 			name: "generate token -> cached token -> token expired -> happy path",
 			givenGetTokenHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(fmt.Sprintf(`{"token":"%s"}`, validToken)))
+				_, _ = fmt.Fprintf(w, `{"token":"%s"}`, validToken)
 				w.WriteHeader(http.StatusOK)
 			},
 			givenCachedToken: expired,

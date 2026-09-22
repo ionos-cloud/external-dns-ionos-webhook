@@ -63,8 +63,9 @@ if [ "$KIND_CLUSTER_RUNNING" = "false" ]; then
     docker network connect "kind" "$LOCAL_REGISTRY_NAME"
     kubectl apply -f ./deployments/kind/local-registry-configmap.yaml
     printf "Installing dns mock server...\n"
-    helm upgrade --install --create-namespace --namespace mockserver --set app.serverPort=1080 --set app.logLevel=INFO mockserver mockserver/mockserver
+    helm upgrade --install --create-namespace --namespace mockserver --set app.serverPort=1080 --set app.logLevel=INFO mockserver oci://ghcr.io/mock-server/charts/mockserver
     sleep $KIND_CLUSTER_WAIT
+    kubectl apply -f ./deployments/kind/mockserver-ingress.yaml
     kubectl port-forward svc/mockserver -n mockserver 1080:1080 &
     sleep 20
 
@@ -89,3 +90,4 @@ printf "Pushing image...\n"
 make docker-push
 
 helm upgrade $HELM_RELEASE_NAME $HELM_CHART -f $HELM_VALUES_FILE --install
+kubectl rollout status deployment/$HELM_RELEASE_NAME --timeout=120s

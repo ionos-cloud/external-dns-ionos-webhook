@@ -5,7 +5,7 @@ GOOS ?= linux
 GOARCH ?= $(shell go env GOARCH)
 
 GO_TEST = $(GO_TOOL) gotest.tools/gotestsum --format pkgname
-GOLANCI_LINT = $(GO_TOOL) github.com/golangci/golangci-lint/cmd/golangci-lint
+GOLANCI_LINT = $(GO_TOOL) github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 GOFUMPT = $(GO_TOOL) mvdan.cc/gofumpt
 GORELEASER = goreleaser
 
@@ -108,14 +108,14 @@ release-check: ## Check if the release will work
 
 .PHONY: license-check
 license-check: ## Run go-licenses check against code.
-	go install github.com/google/go-licenses/v2@latest
+	go install github.com/google/go-licenses/v2@v2.0.1
 	mkdir -p build/reports
 	echo "$(LICENCES_IGNORE_LIST)"
 	go-licenses check --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./...
 
 .PHONY: license-report
 license-report: ## Create licenses report against code.
-	go install github.com/google/go-licenses/v2@latest
+	go install github.com/google/go-licenses/v2@v2.0.1
 	mkdir -p build/reports/licenses
 	go-licenses report --include_tests --ignore "$(LICENCES_IGNORE_LIST)" ./... >build/reports/licenses/licenses-list.csv
 	cat licences/licenses-manual-list.csv >> build/reports/licenses/licenses-list.csv

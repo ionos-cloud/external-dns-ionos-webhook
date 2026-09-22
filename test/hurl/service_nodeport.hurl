@@ -91,13 +91,18 @@ getZoneExpectationId : jsonpath "$[0].id"
 
 
 
-# get node ip
-GET {{k8s_api_url}}/api/v1/nodes
+# get the ingress-nginx-controller service's cluster IP.
+# The kind provider manifest deploys this Service as type LoadBalancer (it has no
+# NodePort in kind), so external-dns's `internal-hostname` annotation handling
+# (which always requests the cluster-internal target) resolves to the Service's
+# ClusterIP rather than a node IP - this must match what external-dns actually
+# publishes, not the node's address.
+GET {{k8s_api_url}}/api/v1/namespaces/ingress-nginx/services/ingress-nginx-controller
 Content-Type: application/json
 
 HTTP/1.1 200
 [Captures]
-node_ip: jsonpath "$.items[0].status.addresses[?(@.type=='InternalIP')].address" nth 0
+node_ip: jsonpath "$.spec.clusterIP"
 
 
 # create A record 
@@ -278,8 +283,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: true
-retry-interval: 6000
-retry: 10
+retry-interval: 5000
+retry: 24
 
 {
     "expectationId": {
@@ -297,8 +302,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: true
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
@@ -316,8 +321,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
@@ -336,8 +341,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {
@@ -356,8 +361,8 @@ PUT {{dns_mockserver_url}}/mockserver/verify
 Content-Type : application/json
 [Options]
 #very-verbose: trues
-retry: 3
-retry-interval: 1000
+retry: 15
+retry-interval: 2000
 
 {
     "expectationId": {

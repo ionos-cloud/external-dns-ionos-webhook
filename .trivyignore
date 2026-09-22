@@ -1,0 +1,3 @@
+# Trivy vulnerability suppressions for this image.
+# One CVE ID per line, optionally followed by a comment explaining why it's suppressed
+# and when to revisit (e.g. "# false positive, see https://... - revisit 2026-12-01").
