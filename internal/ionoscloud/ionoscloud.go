@@ -243,14 +243,8 @@ func (p *Provider) Records(ctx context.Context) ([]*endpoint.Endpoint, error) {
 		func(recordRead sdk.RecordRead) *endpoint.Endpoint {
 			recordProperties := *recordRead.GetProperties()
 			recordMetadata := *recordRead.GetMetadata()
-			target := *recordProperties.GetContent()
-			priority, hasPriority := recordProperties.GetPriorityOk()
-			recordType := *recordProperties.GetType()
-			if (recordType == recordTypeSRV || recordType == recordTypeMX) && hasPriority {
-				target = fmt.Sprintf("%d %s", *priority, target)
-			}
 			return endpoint.NewEndpointWithTTL(*recordMetadata.GetFqdn(), string(*recordProperties.GetType()),
-				endpoint.TTL(*recordProperties.GetTtl()), target)
+				endpoint.TTL(*recordProperties.GetTtl()), recordTarget(recordProperties))
 		}, func(recordRead sdk.RecordRead) string {
 			recordProperties := *recordRead.GetProperties()
 			recordMetadata := *recordRead.GetMetadata()
@@ -289,7 +283,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 			record := *recordRead.GetProperties()
 			if *record.GetType() == sdk.RecordType(ep.RecordType) {
 				for _, target := range ep.Targets {
-					if *record.GetContent() == target {
+					if recordMatchesTarget(record, target) {
 						result = append(result, recordRead)
 					}
 				}
@@ -323,22 +317,7 @@ func (p *Provider) ApplyChanges(ctx context.Context, changes *plan.Changes) erro
 		recordName := extractRecordName(ep.DNSName, zone)
 		result := make([]*sdk.RecordCreate, 0)
 		for _, target := range ep.Targets {
-			content := target
-			priority := int32(0)
-			splitTarget := strings.Split(target, " ")
-			if (ep.RecordType == recordTypeSRV || ep.RecordType == recordTypeMX ||
-				ep.RecordType == recordTypeURI) && len(splitTarget) >= 2 {
-				priority64, err := strconv.ParseInt(splitTarget[0], 10, 32)
-				if err != nil {
-					logger.Warnf("failed to parse priority from target '%s'", target)
-				} else {
-					priority = int32(priority64)
-				}
-				content = splitTarget[1]
-				if ep.RecordType == recordTypeURI {
-					content = target
-				}
-			}
+			priority, content := splitPriority(ep.RecordType, target, logger)
 			record := sdk.NewRecord(recordName, sdk.RecordType(ep.RecordType), content)
 			ttl := int32(ep.RecordTTL)
 			if ttl != 0 {
@@ -391,6 +370,50 @@ func (p *Provider) createZoneTree(ctx context.Context) (*ionos.ZoneTree[sdk.Zone
 		}
 	}
 	return zt, nil
+}
+
+// splitPriority splits an external-dns target into the IONOS priority field and the
+// record content. external-dns carries the priority of MX ("10 mail.example.com") and
+// SRV ("10 1 443 dav.example.com.") targets as the first token; IONOS stores it in a
+// separate field, so everything after it is the content. A missing or unparsable
+// priority is logged and stored as 0. URI records keep the whole target as content.
+func splitPriority(recordType, target string, logger *log.Entry) (int32, string) {
+	if recordType != recordTypeSRV && recordType != recordTypeMX && recordType != recordTypeURI {
+		return 0, target
+	}
+	splitTarget := strings.Split(target, " ")
+	if len(splitTarget) < 2 {
+		return 0, target
+	}
+	priority := int32(0)
+	priority64, err := strconv.ParseInt(splitTarget[0], 10, 32)
+	if err != nil {
+		logger.Warnf("failed to parse priority from target '%s'", target)
+	} else {
+		priority = int32(priority64)
+	}
+	if recordType == recordTypeURI {
+		return priority, target
+	}
+	return priority, strings.Join(splitTarget[1:], " ")
+}
+
+// recordTarget renders a stored IONOS record the way external-dns expresses it as a
+// target: MX and SRV get their priority prepended to the content.
+func recordTarget(record sdk.Record) string {
+	target := *record.GetContent()
+	priority, hasPriority := record.GetPriorityOk()
+	recordType := *record.GetType()
+	if (recordType == recordTypeSRV || recordType == recordTypeMX) && hasPriority {
+		target = fmt.Sprintf("%d %s", *priority, target)
+	}
+	return target
+}
+
+// recordMatchesTarget reports whether a stored record corresponds to an external-dns
+// target, comparing the priority-prefixed form (MX/SRV) as well as the bare content.
+func recordMatchesTarget(record sdk.Record, target string) bool {
+	return recordTarget(record) == target || *record.GetContent() == target
 }
 
 func extractRecordName(fqdn string, zone sdk.ZoneRead) string {
