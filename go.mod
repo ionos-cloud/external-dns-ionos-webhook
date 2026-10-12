@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/external-dns-ionos-webhook
 
-go 1.27.2
+go 1.26.9
 
 require (
 	github.com/caarlos0/env/v8 v8.0.0
