@@ -42,8 +42,8 @@ dockers_v2:
     labels:
       "org.opencontainers.image.title": "{{ .ProjectName }}"
       "org.opencontainers.image.description": "ionos DNS webhook for external-dns"
-      "org.opencontainers.image.url": "https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}"
-      "org.opencontainers.image.source": "https://{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}"
+      "org.opencontainers.image.url": "{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}"
+      "org.opencontainers.image.source": "{{ .Env.GITHUB_SERVER_URL }}/{{ .Env.GITHUB_REPOSITORY}}"
       "org.opencontainers.image.version": "{{ .Version }}"
       "org.opencontainers.image.created": "{{ time \"2006-01-02T15:04:05Z07:00\" }}"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
