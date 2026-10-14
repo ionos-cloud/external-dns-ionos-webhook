@@ -48,13 +48,12 @@ func newTestDNSClient(t *testing.T, dryRun bool, status int, body string) (*DNSC
 	return &DNSClient{clientFactory: newClientFactory(cfg), dryRun: dryRun}, rec
 }
 
-func newFailingFactoryDNSClient(dryRun bool) *DNSClient {
+func newFailingFactoryDNSClient() *DNSClient {
 	return &DNSClient{
 		clientFactory: &clientFactory{
 			tokenProvider: &mockTokenProvider{err: errors.New("token error")},
 			ionosConfig:   &ionos.Configuration{},
 		},
-		dryRun: dryRun,
 	}
 }
 
@@ -95,7 +94,7 @@ func TestDNSClientGetAllRecords(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("client factory error", func(t *testing.T) {
-		_, err := newFailingFactoryDNSClient(false).GetAllRecords(ctx, 0)
+		_, err := newFailingFactoryDNSClient().GetAllRecords(ctx, 0)
 		assert.ErrorContains(t, err, "failed to create IONOS Cloud DNS client")
 	})
 }
@@ -122,7 +121,7 @@ func TestDNSClientGetRecordsByZoneIdAndName(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("client factory error", func(t *testing.T) {
-		_, err := newFailingFactoryDNSClient(false).GetRecordsByZoneIdAndName(ctx, "z1", "www")
+		_, err := newFailingFactoryDNSClient().GetRecordsByZoneIdAndName(ctx, "z1", "www")
 		assert.ErrorContains(t, err, "failed to create IONOS Cloud DNS client")
 	})
 }
@@ -149,7 +148,7 @@ func TestDNSClientGetZones(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("client factory error", func(t *testing.T) {
-		_, err := newFailingFactoryDNSClient(false).GetZones(ctx, 0)
+		_, err := newFailingFactoryDNSClient().GetZones(ctx, 0)
 		assert.ErrorContains(t, err, "failed to create IONOS Cloud DNS client")
 	})
 }
@@ -172,7 +171,7 @@ func TestDNSClientCreateRecord(t *testing.T) {
 		assert.Error(t, c.CreateRecord(ctx, "z1", testRecordCreate()))
 	})
 	t.Run("client factory error", func(t *testing.T) {
-		err := newFailingFactoryDNSClient(false).CreateRecord(ctx, "z1", testRecordCreate())
+		err := newFailingFactoryDNSClient().CreateRecord(ctx, "z1", testRecordCreate())
 		assert.ErrorContains(t, err, "failed to create IONOS Cloud DNS client")
 	})
 }
@@ -195,7 +194,7 @@ func TestDNSClientDeleteRecord(t *testing.T) {
 		assert.Error(t, c.DeleteRecord(ctx, "z1", "r1"))
 	})
 	t.Run("client factory error", func(t *testing.T) {
-		err := newFailingFactoryDNSClient(false).DeleteRecord(ctx, "z1", "r1")
+		err := newFailingFactoryDNSClient().DeleteRecord(ctx, "z1", "r1")
 		assert.ErrorContains(t, err, "failed to create IONOS Cloud DNS client")
 	})
 }
