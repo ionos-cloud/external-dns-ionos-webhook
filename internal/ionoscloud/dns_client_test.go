@@ -59,10 +59,10 @@ func newFailingFactoryDNSClient() *DNSClient {
 
 func testRecordCreate() sdk.RecordCreate {
 	return sdk.RecordCreate{Properties: &sdk.Record{
-		Name:    sdk.ToPtr("www"),
-		Type:    sdk.ToPtr(sdk.RecordType("A")),
-		Content: sdk.ToPtr("1.1.1.1"),
-		Ttl:     sdk.ToPtr(int32(300)),
+		Name:    sdk.PtrString("www"),
+		Type:    sdk.RecordType("A").Ptr(),
+		Content: sdk.PtrString("1.1.1.1"),
+		Ttl:     sdk.PtrInt32(300),
 	}}
 }
 

@@ -57,18 +57,19 @@ func TestGetCreateDeleteSetsFromChanges(t *testing.T) {
 }
 
 func TestEndpointsAreDifferent(t *testing.T) {
-	base := ep("a.de", "A", 300, "1.1.1.1")
+	base := ep("a.de", "A", 300, "1.1.1.1", "2.2.2.2")
 	for name, tc := range map[string]struct {
 		other    *endpoint.Endpoint
 		expected bool
 	}{
-		"identical":         {ep("a.de", "A", 300, "1.1.1.1"), false},
-		"other name":        {ep("b.de", "A", 300, "1.1.1.1"), true},
-		"other type":        {ep("a.de", "TXT", 300, "1.1.1.1"), true},
-		"other ttl":         {ep("a.de", "A", 600, "1.1.1.1"), true},
-		"other target":      {ep("a.de", "A", 300, "2.2.2.2"), true},
-		"extra target":      {ep("a.de", "A", 300, "1.1.1.1", "2.2.2.2"), true},
-		"targets reordered": {ep("a.de", "A", 300, "1.1.1.1"), false},
+		"identical":         {ep("a.de", "A", 300, "1.1.1.1", "2.2.2.2"), false},
+		"other name":        {ep("b.de", "A", 300, "1.1.1.1", "2.2.2.2"), true},
+		"other type":        {ep("a.de", "TXT", 300, "1.1.1.1", "2.2.2.2"), true},
+		"other ttl":         {ep("a.de", "A", 600, "1.1.1.1", "2.2.2.2"), true},
+		"other target":      {ep("a.de", "A", 300, "1.1.1.1", "3.3.3.3"), true},
+		"extra target":      {ep("a.de", "A", 300, "1.1.1.1", "2.2.2.2", "3.3.3.3"), true},
+		"missing target":    {ep("a.de", "A", 300, "1.1.1.1"), true},
+		"targets reordered": {ep("a.de", "A", 300, "2.2.2.2", "1.1.1.1"), false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, endpointsAreDifferent(*base, *tc.other))
