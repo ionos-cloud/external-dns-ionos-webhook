@@ -54,7 +54,7 @@ jobs:
         with:
           install_only: true
       - name: Setup Helm
-        uses: Azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        uses: Azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
       - name: Install hurl
         run: |
           curl -sSL -o /tmp/hurl.deb https://github.com/Orange-OpenSource/hurl/releases/download/8.0.1/hurl_8.0.1_amd64.deb
